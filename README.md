@@ -14,14 +14,14 @@ This will install dependencies and start both backend (port 3001) and frontend (
 ```bash
 # Copy and update environment file
 cp docker-compose.env.example .env
-# Edit .env with your AWS credentials
+# Edit .env with your AWS credentials and optionally custom ports
 
 # Start production containers
 make prod
 ```
 Application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
+- Frontend: http://localhost:3000 (or custom FRONTEND_PORT)
+- Backend API: http://localhost:3001 (or custom BACKEND_PORT)
 
 ## Requirements
 
@@ -59,6 +59,45 @@ Update `.env` file with your S3 bucket:
 ```env
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
+```
+
+## Port Configuration
+
+The application supports flexible port configuration for all environments:
+
+### Development Mode
+```bash
+# Backend port (default: 3001)
+BACKEND_PORT=8080 make dev
+
+# Or export for multiple commands
+export BACKEND_PORT=8080
+make dev
+```
+
+### Production Mode (Docker)
+```bash
+# Copy environment template
+cp docker-compose.env.example .env
+
+# Edit .env to customize ports
+BACKEND_PORT=8080            # Backend port
+FRONTEND_PORT=9000           # Frontend port
+
+# Start with custom ports
+make prod
+```
+
+### Examples
+```bash
+# Standard ports (default)
+Frontend: http://localhost:3000
+Backend:  http://localhost:3001
+
+# Custom ports example
+BACKEND_PORT=8080 FRONTEND_PORT=9000 make prod
+# Frontend: http://localhost:9000
+# Backend:  http://localhost:8080
 ```
 
 ## Commands

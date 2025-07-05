@@ -140,7 +140,7 @@ S3_BUCKET_NAME=your-bucket-name-here  # ← Change this!
 S3_KEY_PREFIX=uploads/
 
 # Server Configuration
-PORT=3001
+BACKEND_PORT=3001
 CORS_ORIGIN=http://localhost:5173
 
 # File Upload Configuration

@@ -22,12 +22,12 @@ help: ## Show this help message
 	@echo "  $(GREEN)make clean$(NC)    - Clean node_modules and build artifacts"
 	@echo ""
 	@echo "$(YELLOW)Development:$(NC)"
-	@echo "  Backend:  http://localhost:3001"
-	@echo "  Frontend: http://localhost:5173"
+	@echo "  Backend:  http://localhost:3001 (configurable via BACKEND_PORT env var)"
+	@echo "  Frontend: http://localhost:5173 (configurable via Vite)"
 	@echo ""
 	@echo "$(YELLOW)Production:$(NC)"
-	@echo "  Backend:  http://localhost:3001"
-	@echo "  Frontend: http://localhost:3000"
+	@echo "  Backend:  http://localhost:3001 (configurable via BACKEND_PORT)"
+	@echo "  Frontend: http://localhost:3000 (configurable via FRONTEND_PORT)"
 
 dev: ## Development mode - install dependencies and start servers
 	@echo "$(BLUE)Starting development mode...$(NC)"
@@ -47,13 +47,13 @@ dev: ## Development mode - install dependencies and start servers
 	fi
 	@echo ""
 	@echo "$(GREEN)Starting development servers...$(NC)"
-	@echo "$(YELLOW)Backend: http://localhost:3001$(NC)"
+	@echo "$(YELLOW)Backend: http://localhost:$${BACKEND_PORT:-3001}$(NC)"
 	@echo "$(YELLOW)Frontend: http://localhost:5173$(NC)"
 	@echo ""
 	@echo "$(GREEN)Press Ctrl+C to stop all servers$(NC)"
 	@echo ""
 	@trap 'kill 0' INT; \
-	(cd backend && npm run dev) & \
+	(cd backend && BACKEND_PORT=$${BACKEND_PORT:-3001} npm run dev) & \
 	(cd frontend && npm run dev) & \
 	wait
 
@@ -64,8 +64,8 @@ prod: ## Production mode - Docker Compose up and build
 	@echo "$(GREEN)✓ Production deployment complete!$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Application URLs:$(NC)"
-	@echo "  Frontend: http://localhost:3000"
-	@echo "  Backend API: http://localhost:3001"
+	@echo "  Frontend: http://localhost:$${FRONTEND_PORT:-3000}"
+	@echo "  Backend API: http://localhost:$${BACKEND_PORT:-3001}"
 	@echo ""
 	@echo "$(YELLOW)Useful commands:$(NC)"
 	@echo "  docker-compose logs -f     - View logs"

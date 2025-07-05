@@ -8,7 +8,7 @@ export const config = {
 
   // Server Configuration
   server: {
-    port: parseInt(process.env.PORT || "3001"),
+    port: parseInt(process.env.BACKEND_PORT || "3001"),
     corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
     // Support multiple origins for production
     corsOrigins: process.env.CORS_ORIGINS?.split(",") || [

@@ -18,14 +18,20 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
+# Install gettext-base for envsubst
+RUN apk add --no-cache gettext
+
 # Copy built application
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration template
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+
+# Set default backend port
+ENV BACKEND_PORT=3001
 
 # Expose port
 EXPOSE 80
 
-# Start nginx
+# Start nginx (nginx will automatically process templates in /etc/nginx/templates/)
 CMD ["nginx", "-g", "daemon off;"] 
