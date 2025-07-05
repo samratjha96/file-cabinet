@@ -59,16 +59,6 @@ dev: ## Development mode - install dependencies and start servers
 
 prod: ## Production mode - Docker Compose up and build
 	@echo "$(BLUE)Starting production mode...$(NC)"
-	@if [ ! -f .env ]; then \
-		cp docker-compose.env.example .env; \
-		echo "$(YELLOW)Created .env from example. Please update it before deploying.$(NC)"; \
-		exit 1; \
-	fi
-	@echo "$(YELLOW)Validating environment...$(NC)"
-	@if grep -q "your-bucket-name" .env; then \
-		echo "$(RED)✗ Please update S3_BUCKET_NAME in .env file$(NC)"; \
-		exit 1; \
-	fi
 	@echo "$(YELLOW)Building and starting production containers...$(NC)"
 	@docker-compose up --build -d
 	@echo "$(GREEN)✓ Production deployment complete!$(NC)"
