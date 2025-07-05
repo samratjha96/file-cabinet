@@ -1,15 +1,12 @@
 import { type FC } from "react";
-import { type UploadItem } from "../App";
+import { type UploadItem } from "../hooks/useUpload";
+import { formatFileSize } from "../utils";
 
 interface UploadProgressProps {
   uploadItems: UploadItem[];
-  formatFileSize: (bytes: number) => string;
 }
 
-export const UploadProgress: FC<UploadProgressProps> = ({
-  uploadItems,
-  formatFileSize,
-}) => {
+export const UploadProgress: FC<UploadProgressProps> = ({ uploadItems }) => {
   const getStatusIcon = (status: UploadItem["status"]) => {
     switch (status) {
       case "pending":

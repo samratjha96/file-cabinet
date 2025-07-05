@@ -2,6 +2,31 @@
 
 This guide explains how to set up and develop the File Cabinet application using the provided Makefile.
 
+## Architecture Overview
+
+The application has been cleaned up and simplified:
+
+- **Frontend**: React 19 with TypeScript, using custom hooks for state management
+- **Backend**: Minimal Node.js/Express API with only 3 endpoints
+- **No Complex Features**: Removed multipart upload, simplified configuration, clean component structure
+
+## Code Structure
+
+```
+frontend/src/
+├── components/          # UI components (FileUpload, FileList, UploadProgress)
+├── hooks/              # Custom hooks (useUpload, useFiles)
+├── utils.ts            # Shared utilities (formatFileSize, validation)
+├── api.ts              # API service (3 simple methods)
+├── config.ts           # Environment configuration
+└── App.tsx             # Main app component (~100 lines)
+
+backend/src/
+├── config.ts           # Clean configuration
+├── s3Service.ts        # S3 operations only
+└── index.ts            # Express server with 3 endpoints
+```
+
 ## New Developer Setup
 
 ### Prerequisites

@@ -1,69 +1,62 @@
-# React + TypeScript + Vite
+# File Cabinet Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Clean, modern React application for file upload and management.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19**: Latest React with TypeScript
+- **Vite 7**: Fast development and build tool
+- **Custom Hooks**: Business logic extracted into reusable hooks
+- **Simple Components**: Small, focused components under 200 lines
+- **Shared Utils**: Common utilities for file handling
 
-## Expanding the ESLint configuration
+## Key Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Clean State Management**: `useUpload` and `useFiles` hooks manage all application state
+- **File Validation**: Automatic validation of file types and sizes
+- **Progress Tracking**: Real-time upload progress with overall statistics
+- **Error Handling**: User-friendly error messages and retry functionality
+- **Responsive Design**: Works on desktop and mobile devices
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Development
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+The application is designed to be simple and maintainable:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. **Components**: UI-only components that receive props
+2. **Hooks**: Business logic and state management
+3. **Utils**: Shared functions for file operations
+4. **API**: Simple service layer for backend communication
+
+## Code Quality
+
+- All components are under 200 lines
+- Custom hooks handle complex state logic
+- Shared utilities prevent code duplication
+- Clean separation of concerns throughout
+
+## Getting Started
+
+```bash
+# Run locally
+make dev
+
+# Run in docker
+make prod
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/          # UI components
+│   ├── FileUpload.tsx
+│   ├── FileList.tsx
+│   └── UploadProgress.tsx
+├── hooks/              # Custom hooks
+│   ├── useUpload.ts
+│   └── useFiles.ts
+├── utils.ts            # Shared utilities
+├── api.ts              # API service
+├── config.ts           # Configuration
+└── App.tsx             # Main component
 ```

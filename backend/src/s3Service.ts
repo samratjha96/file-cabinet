@@ -3,10 +3,6 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   GetObjectCommand,
-  CreateMultipartUploadCommand,
-  UploadPartCommand,
-  CompleteMultipartUploadCommand,
-  AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { config } from "./config";
@@ -91,91 +87,6 @@ class S3Service {
     const fileName = parts[parts.length - 1];
     // Remove the timestamp prefix added during upload
     return fileName.replace(/^\d+-/, "");
-  }
-
-  /**
-   * Initialize multipart upload
-   */
-  async initMultipartUpload(
-    fileName: string,
-    fileType: string,
-  ): Promise<{
-    uploadId: string;
-    key: string;
-  }> {
-    const key = `${config.aws.keyPrefix}${Date.now()}-${fileName}`;
-
-    const command = new CreateMultipartUploadCommand({
-      Bucket: config.aws.bucketName,
-      Key: key,
-      ContentType: fileType,
-    });
-
-    const response = await this.s3Client.send(command);
-
-    if (!response.UploadId) {
-      throw new Error("Failed to initialize multipart upload");
-    }
-
-    return {
-      uploadId: response.UploadId,
-      key,
-    };
-  }
-
-  /**
-   * Generate presigned URL for uploading a part
-   */
-  async generatePartUploadUrl(
-    key: string,
-    uploadId: string,
-    partNumber: number,
-  ): Promise<string> {
-    const command = new UploadPartCommand({
-      Bucket: config.aws.bucketName,
-      Key: key,
-      UploadId: uploadId,
-      PartNumber: partNumber,
-    });
-
-    const signedUrl = await getSignedUrl(this.s3Client, command, {
-      expiresIn: config.upload.presignedUrlExpiry,
-    });
-
-    return signedUrl;
-  }
-
-  /**
-   * Complete multipart upload
-   */
-  async completeMultipartUpload(
-    key: string,
-    uploadId: string,
-    parts: Array<{ PartNumber: number; ETag: string }>,
-  ): Promise<void> {
-    const command = new CompleteMultipartUploadCommand({
-      Bucket: config.aws.bucketName,
-      Key: key,
-      UploadId: uploadId,
-      MultipartUpload: {
-        Parts: parts,
-      },
-    });
-
-    await this.s3Client.send(command);
-  }
-
-  /**
-   * Abort multipart upload
-   */
-  async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
-    const command = new AbortMultipartUploadCommand({
-      Bucket: config.aws.bucketName,
-      Key: key,
-      UploadId: uploadId,
-    });
-
-    await this.s3Client.send(command);
   }
 }
 

@@ -1,11 +1,11 @@
 import { type FC } from "react";
 import { type FileItem } from "../api";
+import { formatFileSize } from "../utils";
 
 interface FileListProps {
   files: FileItem[];
   onDownload: (file: FileItem) => void;
   onRefresh: () => void;
-  formatFileSize: (bytes: number) => string;
   isLoading?: boolean;
 }
 
@@ -13,7 +13,6 @@ export const FileList: FC<FileListProps> = ({
   files,
   onDownload,
   onRefresh,
-  formatFileSize,
   isLoading = false,
 }) => {
   const getFileIcon = (fileName: string) => {

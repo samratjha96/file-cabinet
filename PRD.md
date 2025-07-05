@@ -33,7 +33,7 @@ The primary users are non-technical individuals who need to upload a large volum
 ### 3.2. Technical Requirements
 
 - **Direct S3 Upload:** Files should be uploaded directly from the client to S3 to ensure scalability and performance, minimizing load on the backend server.
-- **Multipart Uploads:** For large files, multipart uploads should be used to improve reliability and speed. This allows large files to be broken into smaller chunks and uploaded in parallel.
+- **Simple Uploads:** Direct file upload to S3 using presigned URLs for simplicity and reliability.
 - **Presigned URLs:** Secure, temporary URLs will be used for both uploading and downloading to ensure files are accessed safely without exposing AWS credentials on the client-side.
 
 ## 4. Proposed Architecture
@@ -57,10 +57,10 @@ graph TD
 
 ### 4.2. Technology Stack
 
-- **Frontend:** React.js (or a similar modern framework like Vue.js) for a responsive and dynamic user interface.
-- **Backend:** Node.js with Express.js for its non-blocking I/O, which is ideal for handling many concurrent requests.
-- **Storage:** AWS S3 for its scalability, durability, and performance.
-- **AWS SDK:** To interact with S3 from the backend.
+- **Frontend:** React 19 with TypeScript and Vite for modern development experience
+- **Backend:** Node.js with Express.js - minimal API with only 3 endpoints
+- **Storage:** AWS S3 for scalable file storage
+- **Architecture:** Clean, simple architecture with custom hooks and shared utilities
 
 ## 5. Development Plan
 
