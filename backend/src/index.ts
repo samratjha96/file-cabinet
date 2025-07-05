@@ -88,16 +88,24 @@ app.post(
 app.get(
   "/api/files",
   asyncHandler(async (req: Request, res: Response) => {
-    const files = await s3Service.listFiles();
+    console.log("API: GET /api/files - Fetching files from S3");
+    try {
+      const files = await s3Service.listFiles();
+      console.log(`API: Found ${files.length} files in S3`);
 
-    const formattedFiles = files.map((file) => ({
-      key: file.key,
-      name: s3Service.getFileNameFromKey(file.key),
-      lastModified: file.lastModified,
-      size: file.size,
-    }));
+      const formattedFiles = files.map((file) => ({
+        key: file.key,
+        name: s3Service.getFileNameFromKey(file.key),
+        lastModified: file.lastModified,
+        size: file.size,
+      }));
 
-    res.json({ files: formattedFiles });
+      console.log(`API: Returning ${formattedFiles.length} formatted files`);
+      res.json({ files: formattedFiles });
+    } catch (error) {
+      console.error("API: Error fetching files from S3:", error);
+      throw error;
+    }
   }),
 );
 
@@ -225,8 +233,9 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-app.listen(config.server.port, () => {
+app.listen(config.server.port, "0.0.0.0", () => {
   console.log(`Server running on port ${config.server.port}`);
+  console.log(`Server bound to: 0.0.0.0:${config.server.port}`);
   console.log(`CORS origin: ${config.server.corsOrigin}`);
   console.log(`S3 bucket: ${config.aws.bucketName}`);
   console.log(`S3 region: ${config.aws.region}`);

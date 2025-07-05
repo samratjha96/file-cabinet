@@ -9,18 +9,10 @@ services:
       # Override specific values for Docker deployment
       - CORS_ORIGIN=http://localhost:3000
       - NODE_ENV=production
-      
-      # AWS credentials will be discovered automatically from:
-      # - Host environment variables
-      # - ~/.aws/credentials (if mounted)
-      # - IAM roles (if running on AWS)
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
 
   frontend:
     build: ./frontend
     ports:
       - "3000:80"
     depends_on:
-      - backend 
+      - backend
