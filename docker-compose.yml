@@ -8,6 +8,7 @@ services:
     environment:
       - CORS_ORIGIN=http://localhost:${FRONTEND_PORT:-3000}
       - NODE_ENV=production
+      - AWS_EC2_METADATA_DISABLED=false
 
   frontend:
     build: ./frontend

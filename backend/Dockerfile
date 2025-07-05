@@ -25,6 +25,7 @@ COPY package*.json ./
 
 # Install only production dependencies
 RUN npm ci --only=production && npm cache clean --force
+RUN echo "[default]\nregion = us-east-1\ncredential_source = Ec2InstanceMetadata" > /root/.aws/config
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
