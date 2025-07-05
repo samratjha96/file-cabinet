@@ -20,17 +20,8 @@ export const config = {
 
   // File Upload Configuration
   upload: {
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "500") * 1024 * 1024, // 500MB default
-    presignedUrlExpiry: parseInt(process.env.PRESIGNED_URL_EXPIRY || "3600"), // 1 hour default
-    allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(",") || [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "video/mp4",
-      "video/quicktime",
-      "video/webm",
-      "video/avi",
-    ],
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "5000") * 1024 * 1024, // 5GB default (increased from 500MB)
+    presignedUrlExpiry: parseInt(process.env.PRESIGNED_URL_EXPIRY || "7200"), // 2 hours default (increased for large files)
+    allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(",") || ["*"], // Allow all file types by default
   },
 };

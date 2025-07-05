@@ -7,11 +7,16 @@ services:
       - "3001:3001"
     environment:
       - AWS_REGION=${AWS_REGION:-us-east-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-file-cabinet-uploads}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
       - CORS_ORIGIN=http://localhost:3000
       - NODE_ENV=production
+      # AWS credentials will be discovered automatically from:
+      # - Host environment variables
+      # - ~/.aws/credentials (if mounted)
+      # - IAM roles (if running on AWS)
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
 
   frontend:
     build: ./frontend

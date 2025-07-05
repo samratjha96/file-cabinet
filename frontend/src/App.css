@@ -64,6 +64,41 @@ body {
   margin-bottom: 30px;
 }
 
+/* Upload mode toggle */
+.file-upload-mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mode-btn {
+  background: #f0f0f0;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.mode-btn:hover {
+  background: #e8e8e8;
+  border-color: #d0d0d0;
+}
+
+.mode-btn.active {
+  background: #2196f3;
+  border-color: #2196f3;
+  color: white;
+}
+
+.mode-btn.active:hover {
+  background: #1976d2;
+  border-color: #1976d2;
+}
+
 .file-upload-area {
   border: 3px dashed #e0e0e0;
   border-radius: 16px;

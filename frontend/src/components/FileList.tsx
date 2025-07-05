@@ -17,21 +17,52 @@ export const FileList: FC<FileListProps> = ({
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split(".").pop()?.toLowerCase();
 
-    switch (extension) {
-      case "jpg":
-      case "jpeg":
-      case "png":
-      case "gif":
-      case "webp":
-        return "🖼️";
-      case "mp4":
-      case "mov":
-      case "webm":
-      case "avi":
-        return "🎬";
-      default:
-        return "📄";
+    // Images
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff", "ico"].includes(extension || "")) {
+      return "🖼️";
     }
+    
+    // Videos
+    if (["mp4", "mov", "webm", "avi", "mkv", "flv", "wmv", "m4v", "3gp"].includes(extension || "")) {
+      return "🎬";
+    }
+    
+    // Audio
+    if (["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a"].includes(extension || "")) {
+      return "🎵";
+    }
+    
+    // Documents
+    if (["pdf", "doc", "docx", "txt", "rtf", "odt"].includes(extension || "")) {
+      return "📄";
+    }
+    
+    // Presentations
+    if (["ppt", "pptx", "odp"].includes(extension || "")) {
+      return "📊";
+    }
+    
+    // Spreadsheets
+    if (["xls", "xlsx", "csv", "ods"].includes(extension || "")) {
+      return "📈";
+    }
+    
+    // Archives
+    if (["zip", "rar", "7z", "tar", "gz", "bz2", "xz"].includes(extension || "")) {
+      return "📦";
+    }
+    
+    // Code files
+    if (["js", "ts", "jsx", "tsx", "html", "css", "scss", "py", "java", "cpp", "c", "cs", "php", "rb", "go", "rs", "swift"].includes(extension || "")) {
+      return "💻";
+    }
+    
+    // Executables
+    if (["exe", "msi", "deb", "rpm", "dmg", "pkg", "app"].includes(extension || "")) {
+      return "⚙️";
+    }
+
+    return "📄";
   };
 
   const formatDate = (date: Date) => {

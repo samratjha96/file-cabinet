@@ -65,8 +65,8 @@ prod: ## Production mode - Docker Compose up and build
 		exit 1; \
 	fi
 	@echo "$(YELLOW)Validating environment...$(NC)"
-	@if grep -q "your-aws-access-key-id" .env; then \
-		echo "$(RED)✗ Please update AWS credentials in .env file$(NC)"; \
+	@if grep -q "your-bucket-name" .env; then \
+		echo "$(RED)✗ Please update S3_BUCKET_NAME in .env file$(NC)"; \
 		exit 1; \
 	fi
 	@echo "$(YELLOW)Building and starting production containers...$(NC)"
@@ -81,6 +81,11 @@ prod: ## Production mode - Docker Compose up and build
 	@echo "  docker-compose logs -f     - View logs"
 	@echo "  docker-compose stop        - Stop containers"
 	@echo "  docker-compose down        - Stop and remove containers"
+	@echo ""
+	@echo "$(YELLOW)AWS credentials are discovered automatically from:$(NC)"
+	@echo "  - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)"
+	@echo "  - AWS credentials file (~/.aws/credentials)"
+	@echo "  - IAM roles (if running on AWS infrastructure)"
 
 clean: ## Clean node_modules and build artifacts
 	@echo "$(BLUE)Cleaning project...$(NC)"

@@ -33,8 +33,9 @@ function App() {
   };
 
   const handleFilesSelected = (selectedFiles: File[]) => {
-    const newUploadItems: UploadItem[] = selectedFiles.map((file) => ({
-      id: `${Date.now()}-${file.name}`,
+    const baseTimestamp = Date.now();
+    const newUploadItems: UploadItem[] = selectedFiles.map((file, index) => ({
+      id: `${baseTimestamp}-${index}-${file.name}-${file.size}`,
       file,
       progress: 0,
       status: "pending",
@@ -56,15 +57,8 @@ function App() {
           ),
         );
 
-        // Get presigned URL
-        const uploadResponse = await apiService.getUploadUrl(
-          item.file.name,
-          item.file.type,
-        );
-
-        // Upload file with progress tracking
-        await apiService.uploadFile(
-          uploadResponse.uploadUrl,
+        // Upload file with smart upload (automatically chooses single or multipart)
+        await apiService.smartUpload(
           item.file,
           (progress) => {
             setUploadItems((prev) =>
@@ -81,14 +75,29 @@ function App() {
         );
       } catch (error) {
         console.error("Upload error:", error);
+        
+        // Extract more detailed error information
+        let errorMessage = "Upload failed";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          
+          // If it's an axios error, try to get the backend error message
+          if ('response' in error && error.response && typeof error.response === 'object') {
+            const response = error.response as any;
+            if (response.data && response.data.error) {
+              errorMessage = `Backend error: ${response.data.error}`;
+            }
+            console.error("Backend response:", response.data);
+          }
+        }
+        
         setUploadItems((prev) =>
           prev.map((i) =>
             i.id === item.id
               ? {
                   ...i,
                   status: "error",
-                  error:
-                    error instanceof Error ? error.message : "Upload failed",
+                  error: errorMessage,
                 }
               : i,
           ),
