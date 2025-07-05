@@ -1,5 +1,5 @@
-import { type FC } from 'react';
-import { type FileItem } from '../api';
+import { type FC } from "react";
+import { type FileItem } from "../api";
 
 interface FileListProps {
   files: FileItem[];
@@ -8,39 +8,39 @@ interface FileListProps {
   formatFileSize: (bytes: number) => string;
 }
 
-export const FileList: FC<FileListProps> = ({ 
-  files, 
-  onDownload, 
-  onRefresh, 
-  formatFileSize 
+export const FileList: FC<FileListProps> = ({
+  files,
+  onDownload,
+  onRefresh,
+  formatFileSize,
 }) => {
   const getFileIcon = (fileName: string) => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    
+    const extension = fileName.split(".").pop()?.toLowerCase();
+
     switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-      case 'webp':
-        return '🖼️';
-      case 'mp4':
-      case 'mov':
-      case 'webm':
-      case 'avi':
-        return '🎬';
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "webp":
+        return "🖼️";
+      case "mp4":
+      case "mov":
+      case "webm":
+      case "avi":
+        return "🎬";
       default:
-        return '📄';
+        return "📄";
     }
   };
 
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(new Date(date));
   };
 
@@ -48,7 +48,7 @@ export const FileList: FC<FileListProps> = ({
     <div className="file-list-container">
       <div className="file-list-header">
         <h3>📂 Uploaded Files ({files.length})</h3>
-        <button 
+        <button
           onClick={onRefresh}
           className="refresh-btn"
           title="Refresh file list"
@@ -56,7 +56,7 @@ export const FileList: FC<FileListProps> = ({
           🔄
         </button>
       </div>
-      
+
       {files.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📭</div>
@@ -70,10 +70,8 @@ export const FileList: FC<FileListProps> = ({
           {files.map((file) => (
             <div key={file.key} className="file-item">
               <div className="file-item-content">
-                <div className="file-icon">
-                  {getFileIcon(file.name)}
-                </div>
-                
+                <div className="file-icon">{getFileIcon(file.name)}</div>
+
                 <div className="file-info">
                   <div className="file-name">{file.name}</div>
                   <div className="file-details">
@@ -81,11 +79,13 @@ export const FileList: FC<FileListProps> = ({
                       {formatFileSize(file.size || 0)}
                     </span>
                     <span className="file-date">
-                      {file.lastModified ? formatDate(file.lastModified) : 'Unknown'}
+                      {file.lastModified
+                        ? formatDate(file.lastModified)
+                        : "Unknown"}
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="file-actions">
                   <button
                     onClick={() => onDownload(file)}
@@ -102,4 +102,4 @@ export const FileList: FC<FileListProps> = ({
       )}
     </div>
   );
-}; 
+};

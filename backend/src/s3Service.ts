@@ -1,6 +1,11 @@
-import { S3Client, ListObjectsV2Command, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { config } from './config';
+import {
+  S3Client,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { config } from "./config";
 
 class S3Service {
   private s3Client: S3Client;
@@ -18,7 +23,7 @@ class S3Service {
    */
   async generateUploadUrl(fileName: string, fileType: string): Promise<string> {
     const key = `${config.aws.keyPrefix}${Date.now()}-${fileName}`;
-    
+
     const command = new PutObjectCommand({
       Bucket: config.aws.bucketName,
       Key: key,
@@ -51,30 +56,38 @@ class S3Service {
   /**
    * List all files in the S3 bucket
    */
-  async listFiles(): Promise<Array<{ key: string; lastModified: Date | undefined; size: number | undefined }>> {
+  async listFiles(): Promise<
+    Array<{
+      key: string;
+      lastModified: Date | undefined;
+      size: number | undefined;
+    }>
+  > {
     const command = new ListObjectsV2Command({
       Bucket: config.aws.bucketName,
       Prefix: config.aws.keyPrefix,
     });
 
     const response = await this.s3Client.send(command);
-    
-    return response.Contents?.map(item => ({
-      key: item.Key || '',
-      lastModified: item.LastModified,
-      size: item.Size,
-    })) || [];
+
+    return (
+      response.Contents?.map((item) => ({
+        key: item.Key || "",
+        lastModified: item.LastModified,
+        size: item.Size,
+      })) || []
+    );
   }
 
   /**
    * Get the file name from the S3 key
    */
   getFileNameFromKey(key: string): string {
-    const parts = key.split('/');
+    const parts = key.split("/");
     const fileName = parts[parts.length - 1];
     // Remove the timestamp prefix added during upload
-    return fileName.replace(/^\d+-/, '');
+    return fileName.replace(/^\d+-/, "");
   }
 }
 
-export const s3Service = new S3Service(); 
+export const s3Service = new S3Service();

@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
-import { FileUpload } from './components/FileUpload';
-import { FileList } from './components/FileList';
-import { UploadProgress } from './components/UploadProgress';
-import { apiService, type FileItem } from './api';
-import './App.css';
+import { useState, useEffect } from "react";
+import { FileUpload } from "./components/FileUpload";
+import { FileList } from "./components/FileList";
+import { UploadProgress } from "./components/UploadProgress";
+import { apiService, type FileItem } from "./api";
+import "./App.css";
 
 export interface UploadItem {
   id: string;
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'completed' | 'error';
+  status: "pending" | "uploading" | "completed" | "error";
   error?: string;
 }
 
@@ -28,61 +28,77 @@ function App() {
       const response = await apiService.getFiles();
       setFiles(response.files);
     } catch (error) {
-      console.error('Error loading files:', error);
+      console.error("Error loading files:", error);
     }
   };
 
   const handleFilesSelected = (selectedFiles: File[]) => {
-    const newUploadItems: UploadItem[] = selectedFiles.map(file => ({
+    const newUploadItems: UploadItem[] = selectedFiles.map((file) => ({
       id: `${Date.now()}-${file.name}`,
       file,
       progress: 0,
-      status: 'pending',
+      status: "pending",
     }));
 
-    setUploadItems(prev => [...prev, ...newUploadItems]);
+    setUploadItems((prev) => [...prev, ...newUploadItems]);
     startUploads(newUploadItems);
   };
 
   const startUploads = async (items: UploadItem[]) => {
     setIsUploading(true);
-    
+
     const uploadPromises = items.map(async (item) => {
       try {
         // Update status to uploading
-        setUploadItems(prev => 
-          prev.map(i => i.id === item.id ? { ...i, status: 'uploading' } : i)
+        setUploadItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id ? { ...i, status: "uploading" } : i,
+          ),
         );
 
         // Get presigned URL
-        const uploadResponse = await apiService.getUploadUrl(item.file.name, item.file.type);
-        
+        const uploadResponse = await apiService.getUploadUrl(
+          item.file.name,
+          item.file.type,
+        );
+
         // Upload file with progress tracking
-        await apiService.uploadFile(uploadResponse.uploadUrl, item.file, (progress) => {
-          setUploadItems(prev => 
-            prev.map(i => i.id === item.id ? { ...i, progress } : i)
-          );
-        });
+        await apiService.uploadFile(
+          uploadResponse.uploadUrl,
+          item.file,
+          (progress) => {
+            setUploadItems((prev) =>
+              prev.map((i) => (i.id === item.id ? { ...i, progress } : i)),
+            );
+          },
+        );
 
         // Mark as completed
-        setUploadItems(prev => 
-          prev.map(i => i.id === item.id ? { ...i, status: 'completed', progress: 100 } : i)
+        setUploadItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id ? { ...i, status: "completed", progress: 100 } : i,
+          ),
         );
       } catch (error) {
-        console.error('Upload error:', error);
-        setUploadItems(prev => 
-          prev.map(i => i.id === item.id ? { 
-            ...i, 
-            status: 'error', 
-            error: error instanceof Error ? error.message : 'Upload failed' 
-          } : i)
+        console.error("Upload error:", error);
+        setUploadItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? {
+                  ...i,
+                  status: "error",
+                  error:
+                    error instanceof Error ? error.message : "Upload failed",
+                }
+              : i,
+          ),
         );
       }
     });
 
     await Promise.all(uploadPromises);
     setIsUploading(false);
-    
+
     // Refresh file list after uploads complete
     setTimeout(() => {
       loadFiles();
@@ -90,24 +106,29 @@ function App() {
   };
 
   const clearCompletedUploads = () => {
-    setUploadItems(prev => prev.filter(item => item.status !== 'completed'));
+    setUploadItems((prev) =>
+      prev.filter((item) => item.status !== "completed"),
+    );
   };
 
   const handleDownload = async (fileItem: FileItem) => {
     try {
       const downloadResponse = await apiService.getDownloadUrl(fileItem.key);
-      await apiService.downloadFile(downloadResponse.downloadUrl, fileItem.name);
+      await apiService.downloadFile(
+        downloadResponse.downloadUrl,
+        fileItem.name,
+      );
     } catch (error) {
-      console.error('Download error:', error);
+      console.error("Download error:", error);
     }
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
@@ -119,17 +140,17 @@ function App() {
 
       <main className="app-main">
         <div className="upload-section">
-          <FileUpload 
+          <FileUpload
             onFilesSelected={handleFilesSelected}
             isUploading={isUploading}
           />
-          
+
           {uploadItems.length > 0 && (
             <div className="upload-progress-section">
               <div className="upload-progress-header">
                 <h3>Upload Progress</h3>
-                {uploadItems.some(item => item.status === 'completed') && (
-                  <button 
+                {uploadItems.some((item) => item.status === "completed") && (
+                  <button
                     onClick={clearCompletedUploads}
                     className="clear-completed-btn"
                   >
@@ -137,7 +158,7 @@ function App() {
                   </button>
                 )}
               </div>
-              <UploadProgress 
+              <UploadProgress
                 uploadItems={uploadItems}
                 formatFileSize={formatFileSize}
               />
@@ -146,7 +167,7 @@ function App() {
         </div>
 
         <div className="files-section">
-          <FileList 
+          <FileList
             files={files}
             onDownload={handleDownload}
             onRefresh={loadFiles}

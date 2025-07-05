@@ -1,0 +1,186 @@
+# File Cabinet - Cursor Rules
+# Modern React/Vite file upload application with production deployment
+
+## 🎯 **PRIMARY RULE: MAKEFILE CONSOLIDATION**
+
+**ALL scripts, builds, and automation go in the Makefile. NO separate `.sh` files.**
+
+## 🚀 **MODERN FRONTEND STACK**
+
+### **Core Technologies:**
+- **React 19** - Latest stable with concurrent features
+- **Vite 7** - Lightning-fast dev server and builds
+- **TypeScript 5.8** - Strict typing throughout
+- **Axios** - HTTP client with proper error handling
+- **Docker** - Production containerization
+
+### **Vite Best Practices:**
+- Use `import.meta.env.VITE_*` for environment variables
+- Leverage Vite's HMR for instant development feedback
+- Optimize builds with `vite build` and asset chunking
+- Use `vite preview` for local production testing
+- Configure proper base paths for deployment
+
+## 🏗️ **PROJECT STRUCTURE**
+
+```
+file-cabinet/
+├── backend/          # Node.js/Express API
+├── frontend/         # React/Vite SPA
+├── Makefile         # ALL automation (mandatory)
+├── docker-compose.yml # Container orchestration
+└── .cursorrules     # This file
+```
+
+## 🔧 **MAKEFILE STANDARDS**
+
+### **Command Pattern:**
+```makefile
+command-name: ## Description
+	@echo "$(BLUE)Action...$(NC)"
+	@command-here
+	@echo "$(GREEN)✓ Success$(NC)"
+```
+
+### **Required Categories:**
+- `install`, `setup`, `dev` - Development workflow
+- `build`, `docker-*` - Build and deployment
+- `test`, `lint`, `format` - Quality assurance
+- `clean`, `status`, `logs` - Maintenance
+
+## 🌐 **DEPLOYMENT ENVIRONMENTS**
+
+### **Local Development:**
+- `make dev` - Vite dev server (localhost:5173)
+- `make docker-dev` - Full Docker stack
+- Hot reloading and instant feedback
+
+### **Staging/Production:**
+- `make docker-deploy` - Production containers
+- `make docker-build` - Optimized builds
+- Environment-specific configurations
+- Health checks and monitoring
+
+### **Remote Deployment:**
+- AWS/GCP/Azure compatible Docker images
+- Environment variables for cloud services
+- CDN-ready static assets from Vite
+- Multi-stage Docker builds for optimization
+
+## 📱 **FRONTEND ARCHITECTURE**
+
+### **Component Structure:**
+- Small, focused components
+- Custom hooks for logic
+- TypeScript interfaces for props
+- Error boundaries for robustness
+
+### **State Management:**
+- React's built-in state for simple cases
+- Custom hooks for shared state
+- Context API for global state
+- Avoid over-engineering with external libraries
+
+### **Performance:**
+- Lazy loading with React.lazy()
+- Vite's automatic code splitting
+- Optimized images and assets
+- Proper caching headers
+
+## 🔒 **SECURITY & ENVIRONMENT**
+
+### **Environment Variables:**
+- Frontend: `VITE_API_BASE_URL`, `VITE_*` prefix
+- Backend: `AWS_*`, `NODE_ENV`, `CORS_ORIGIN`
+- Never commit `.env` files
+- Use `.env.example` templates
+
+### **CORS Configuration:**
+- Multiple origins support
+- Docker network compatibility
+- Production domain configuration
+- Development localhost flexibility
+
+## 🧪 **TESTING & QUALITY**
+
+### **Testing Strategy:**
+- Unit tests for components
+- Integration tests for API endpoints
+- E2E tests for critical user flows
+- Visual regression testing
+
+### **Code Quality:**
+- ESLint with React hooks rules
+- Prettier for consistent formatting
+- TypeScript strict mode
+- Automated quality checks in Makefile
+
+## 📦 **BUILD & DEPLOYMENT**
+
+### **Vite Build Optimization:**
+- Bundle analysis and optimization
+- Asset compression and minification
+- Modern JavaScript for supported browsers
+- Progressive Web App features
+
+### **Docker Strategy:**
+- Multi-stage builds for size optimization
+- Non-root containers for security
+- Health checks and restart policies
+- Environment-specific configurations
+
+## 🚫 **ANTI-PATTERNS**
+
+### **Never Create:**
+- ❌ Separate shell scripts (`.sh`, `.bash`)
+- ❌ Complex npm scripts beyond basics
+- ❌ Custom CLI tools for simple tasks
+- ❌ Multiple ways to do the same thing
+
+### **Avoid:**
+- ❌ Prop drilling - use context/hooks
+- ❌ Massive components - keep them small
+- ❌ Inline styles - use CSS modules/styled-components
+- ❌ Hardcoded values - use environment variables
+
+## 🎨 **CODE STYLE**
+
+### **TypeScript:**
+- Strict type checking enabled
+- Interfaces over types when possible
+- Proper error handling with Result types
+- Generic components when appropriate
+
+### **React:**
+- Functional components with hooks
+- Custom hooks for reusable logic
+- Proper dependency arrays in useEffect
+- Memoization only when needed
+
+## 📊 **MONITORING & OBSERVABILITY**
+
+### **Health Checks:**
+- Frontend: nginx health endpoint
+- Backend: express health endpoint
+- Docker: container health checks
+- AWS: CloudWatch integration
+
+### **Logging:**
+- Structured logging with timestamps
+- Different log levels (error, warn, info)
+- Request/response logging
+- Error tracking and reporting
+
+## 🔄 **DEVELOPMENT WORKFLOW**
+
+1. **Setup**: `make setup` - Install deps and configure env
+2. **Develop**: `make dev` - Start dev servers with HMR
+3. **Test**: `make test` - Run all tests
+4. **Build**: `make build` - Create production builds
+5. **Deploy**: `make docker-deploy` - Deploy to production
+
+## 🎯 **BEFORE ADDING ANYTHING**
+
+Ask: "Can this be a Makefile command?" If yes, add it there. If no, document why.
+
+**Remember: Makefile is your single source of truth for all project automation.** 
