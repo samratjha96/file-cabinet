@@ -96,7 +96,10 @@ class S3Service {
   /**
    * Initialize multipart upload
    */
-  async initMultipartUpload(fileName: string, fileType: string): Promise<{
+  async initMultipartUpload(
+    fileName: string,
+    fileType: string,
+  ): Promise<{
     uploadId: string;
     key: string;
   }> {

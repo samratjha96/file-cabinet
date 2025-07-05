@@ -104,14 +104,28 @@ export const apiService = {
   },
 
   // Initialize multipart upload
-  async initMultipartUpload(fileName: string, fileType: string): Promise<MultipartInitResponse> {
-    const response = await api.post("/api/multipart-upload/init", { fileName, fileType });
+  async initMultipartUpload(
+    fileName: string,
+    fileType: string,
+  ): Promise<MultipartInitResponse> {
+    const response = await api.post("/api/multipart-upload/init", {
+      fileName,
+      fileType,
+    });
     return response.data;
   },
 
   // Get presigned URL for part upload
-  async getPartUploadUrl(key: string, uploadId: string, partNumber: number): Promise<PartUploadResponse> {
-    const response = await api.post("/api/multipart-upload/part-url", { key, uploadId, partNumber });
+  async getPartUploadUrl(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+  ): Promise<PartUploadResponse> {
+    const response = await api.post("/api/multipart-upload/part-url", {
+      key,
+      uploadId,
+      partNumber,
+    });
     return response.data;
   },
 
@@ -129,7 +143,7 @@ export const apiService = {
         }
       },
     });
-    
+
     return response.headers.etag || response.headers.ETag || "";
   },
 
@@ -139,7 +153,11 @@ export const apiService = {
     uploadId: string,
     parts: Array<{ PartNumber: number; ETag: string }>,
   ): Promise<MultipartCompleteResponse> {
-    const response = await api.post("/api/multipart-upload/complete", { key, uploadId, parts });
+    const response = await api.post("/api/multipart-upload/complete", {
+      key,
+      uploadId,
+      parts,
+    });
     return response.data;
   },
 
@@ -154,19 +172,19 @@ export const apiService = {
     onProgress?: (progress: number) => void,
   ): Promise<void> {
     // Validate file properties
-    if (!file.name || file.name.trim() === '') {
-      throw new Error('File name is required');
+    if (!file.name || file.name.trim() === "") {
+      throw new Error("File name is required");
     }
-    
+
     if (file.size === 0) {
-      throw new Error('Cannot upload empty files');
+      throw new Error("Cannot upload empty files");
     }
-    
+
     // Ensure file type is set (use generic type if not available)
-    const fileType = file.type || 'application/octet-stream';
-    
-    const { chunkSize, maxFileSize } = config.upload;
-    
+    const fileType = file.type || "application/octet-stream";
+
+    const { chunkSize } = config.upload;
+
     // Use multipart upload for files larger than chunk size
     if (file.size > chunkSize) {
       await this.uploadFileMultipart(file, onProgress);
@@ -183,56 +201,64 @@ export const apiService = {
     onProgress?: (progress: number) => void,
   ): Promise<void> {
     // Validate file properties
-    if (!file.name || file.name.trim() === '') {
-      throw new Error('File name is required');
+    if (!file.name || file.name.trim() === "") {
+      throw new Error("File name is required");
     }
-    
+
     if (file.size === 0) {
-      throw new Error('Cannot upload empty files');
+      throw new Error("Cannot upload empty files");
     }
-    
+
     // Ensure file type is set (use generic type if not available)
-    const fileType = file.type || 'application/octet-stream';
-    
+    const fileType = file.type || "application/octet-stream";
+
     const { chunkSize } = config.upload;
     const totalChunks = Math.ceil(file.size / chunkSize);
-    
+
     // Initialize multipart upload
     const initResponse = await this.initMultipartUpload(file.name, fileType);
     const { uploadId, key } = initResponse;
-    
+
     try {
       const parts: Array<{ PartNumber: number; ETag: string }> = [];
       let totalUploaded = 0;
-      
+
       // Upload parts
       for (let i = 0; i < totalChunks; i++) {
         const partNumber = i + 1;
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
-        
+
         // Get presigned URL for this part
-        const partResponse = await this.getPartUploadUrl(key, uploadId, partNumber);
-        
+        const partResponse = await this.getPartUploadUrl(
+          key,
+          uploadId,
+          partNumber,
+        );
+
         // Upload the part
-        const etag = await this.uploadPart(partResponse.partUploadUrl, chunk, (partProgress) => {
-          const chunkUploaded = (partProgress / 100) * chunk.size;
-          const currentTotal = totalUploaded + chunkUploaded;
-          const overallProgress = (currentTotal / file.size) * 100;
-          
-          if (onProgress) {
-            onProgress(overallProgress);
-          }
-        });
-        
+        const etag = await this.uploadPart(
+          partResponse.partUploadUrl,
+          chunk,
+          (partProgress) => {
+            const chunkUploaded = (partProgress / 100) * chunk.size;
+            const currentTotal = totalUploaded + chunkUploaded;
+            const overallProgress = (currentTotal / file.size) * 100;
+
+            if (onProgress) {
+              onProgress(overallProgress);
+            }
+          },
+        );
+
         parts.push({ PartNumber: partNumber, ETag: etag });
         totalUploaded += chunk.size;
       }
-      
+
       // Complete multipart upload
       await this.completeMultipartUpload(key, uploadId, parts);
-      
+
       if (onProgress) {
         onProgress(100);
       }

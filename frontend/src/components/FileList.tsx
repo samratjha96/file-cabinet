@@ -6,6 +6,7 @@ interface FileListProps {
   onDownload: (file: FileItem) => void;
   onRefresh: () => void;
   formatFileSize: (bytes: number) => string;
+  isLoading?: boolean;
 }
 
 export const FileList: FC<FileListProps> = ({
@@ -13,52 +14,99 @@ export const FileList: FC<FileListProps> = ({
   onDownload,
   onRefresh,
   formatFileSize,
+  isLoading = false,
 }) => {
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split(".").pop()?.toLowerCase();
 
     // Images
-    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff", "ico"].includes(extension || "")) {
+    if (
+      [
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "webp",
+        "svg",
+        "bmp",
+        "tiff",
+        "ico",
+      ].includes(extension || "")
+    ) {
       return "🖼️";
     }
-    
+
     // Videos
-    if (["mp4", "mov", "webm", "avi", "mkv", "flv", "wmv", "m4v", "3gp"].includes(extension || "")) {
+    if (
+      ["mp4", "mov", "webm", "avi", "mkv", "flv", "wmv", "m4v", "3gp"].includes(
+        extension || "",
+      )
+    ) {
       return "🎬";
     }
-    
+
     // Audio
-    if (["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a"].includes(extension || "")) {
+    if (
+      ["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a"].includes(
+        extension || "",
+      )
+    ) {
       return "🎵";
     }
-    
+
     // Documents
     if (["pdf", "doc", "docx", "txt", "rtf", "odt"].includes(extension || "")) {
       return "📄";
     }
-    
+
     // Presentations
     if (["ppt", "pptx", "odp"].includes(extension || "")) {
       return "📊";
     }
-    
+
     // Spreadsheets
     if (["xls", "xlsx", "csv", "ods"].includes(extension || "")) {
       return "📈";
     }
-    
+
     // Archives
-    if (["zip", "rar", "7z", "tar", "gz", "bz2", "xz"].includes(extension || "")) {
+    if (
+      ["zip", "rar", "7z", "tar", "gz", "bz2", "xz"].includes(extension || "")
+    ) {
       return "📦";
     }
-    
+
     // Code files
-    if (["js", "ts", "jsx", "tsx", "html", "css", "scss", "py", "java", "cpp", "c", "cs", "php", "rb", "go", "rs", "swift"].includes(extension || "")) {
+    if (
+      [
+        "js",
+        "ts",
+        "jsx",
+        "tsx",
+        "html",
+        "css",
+        "scss",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "cs",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "swift",
+      ].includes(extension || "")
+    ) {
       return "💻";
     }
-    
+
     // Executables
-    if (["exe", "msi", "deb", "rpm", "dmg", "pkg", "app"].includes(extension || "")) {
+    if (
+      ["exe", "msi", "deb", "rpm", "dmg", "pkg", "app"].includes(
+        extension || "",
+      )
+    ) {
       return "⚙️";
     }
 
@@ -78,23 +126,43 @@ export const FileList: FC<FileListProps> = ({
   return (
     <div className="file-list-container">
       <div className="file-list-header">
-        <h3>📂 Uploaded Files ({files.length})</h3>
+        <h3>
+          📂 Your Files ({files.length})
+          {isLoading && (
+            <span
+              style={{
+                fontSize: "0.875rem",
+                color: "var(--text-secondary)",
+                fontWeight: "normal",
+              }}
+            >
+              {" "}
+              Loading...
+            </span>
+          )}
+        </h3>
         <button
           onClick={onRefresh}
           className="refresh-btn"
           title="Refresh file list"
+          disabled={isLoading}
         >
-          🔄
+          {isLoading ? "⏳" : "🔄"}
         </button>
       </div>
 
-      {files.length === 0 ? (
+      {files.length === 0 && !isLoading ? (
         <div className="empty-state">
           <div className="empty-state-icon">📭</div>
           <p>No files uploaded yet</p>
           <p className="empty-state-subtitle">
             Upload some files to see them here
           </p>
+        </div>
+      ) : isLoading ? (
+        <div className="loading-state">
+          <div className="loading-icon">⏳</div>
+          <p>Loading your files...</p>
         </div>
       ) : (
         <div className="file-list">
@@ -104,7 +172,9 @@ export const FileList: FC<FileListProps> = ({
                 <div className="file-icon">{getFileIcon(file.name)}</div>
 
                 <div className="file-info">
-                  <div className="file-name">{file.name}</div>
+                  <div className="file-name" title={file.name}>
+                    {file.name}
+                  </div>
                   <div className="file-details">
                     <span className="file-size">
                       {formatFileSize(file.size || 0)}
@@ -121,7 +191,7 @@ export const FileList: FC<FileListProps> = ({
                   <button
                     onClick={() => onDownload(file)}
                     className="download-btn"
-                    title="Download file"
+                    title={`Download ${file.name}`}
                   >
                     ⬇️
                   </button>

@@ -64,11 +64,14 @@ app.post(
     }
 
     // Check if file type is allowed (skip check if "*" is in allowed types)
-    const isAllowedType = config.upload.allowedFileTypes.includes("*") || 
-                         config.upload.allowedFileTypes.includes(fileType);
+    const isAllowedType =
+      config.upload.allowedFileTypes.includes("*") ||
+      config.upload.allowedFileTypes.includes(fileType);
 
     if (!isAllowedType) {
-      return res.status(400).json({ error: `File type not allowed: ${fileType}` });
+      return res
+        .status(400)
+        .json({ error: `File type not allowed: ${fileType}` });
     }
 
     const uploadUrl = await s3Service.generateUploadUrl(fileName, fileType);
@@ -130,12 +133,17 @@ app.post(
     }
 
     // Check if file type is allowed (skip check if "*" is in allowed types)
-    if (!config.upload.allowedFileTypes.includes("*") && 
-        !config.upload.allowedFileTypes.includes(fileType)) {
+    if (
+      !config.upload.allowedFileTypes.includes("*") &&
+      !config.upload.allowedFileTypes.includes(fileType)
+    ) {
       return res.status(400).json({ error: "File type not allowed" });
     }
 
-    const { uploadId, key } = await s3Service.initMultipartUpload(fileName, fileType);
+    const { uploadId, key } = await s3Service.initMultipartUpload(
+      fileName,
+      fileType,
+    );
 
     res.json({
       uploadId,
@@ -158,7 +166,11 @@ app.post(
         .json({ error: "key, uploadId, and partNumber are required" });
     }
 
-    const partUploadUrl = await s3Service.generatePartUploadUrl(key, uploadId, partNumber);
+    const partUploadUrl = await s3Service.generatePartUploadUrl(
+      key,
+      uploadId,
+      partNumber,
+    );
 
     res.json({
       partUploadUrl,
@@ -195,9 +207,7 @@ app.post(
     const { key, uploadId } = req.body;
 
     if (!key || !uploadId) {
-      return res
-        .status(400)
-        .json({ error: "key and uploadId are required" });
+      return res.status(400).json({ error: "key and uploadId are required" });
     }
 
     await s3Service.abortMultipartUpload(key, uploadId);
