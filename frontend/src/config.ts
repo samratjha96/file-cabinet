@@ -1,7 +1,7 @@
 export const config = {
   // API Configuration
   api: {
-    baseUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:3001",
+    baseUrl: import.meta.env.VITE_API_BASE_URL || "",
   },
 
   // File Upload Configuration

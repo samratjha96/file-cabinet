@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { apiService, FileItem } from "../api";
+import { apiService, type FileItem } from "../api";
 
 export const useFiles = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
