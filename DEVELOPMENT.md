@@ -5,7 +5,7 @@ This guide explains how to set up and develop the File Cabinet application using
 ## New Developer Setup
 
 ### Prerequisites
-- Node.js 18+ installed
+- Node.js 20+ installed
 - `make` command available (comes with most Unix systems)
 - AWS CLI configured (for S3 access)
 
@@ -75,9 +75,33 @@ make clean
 After running `make setup`, you need to:
 
 1. **Create an S3 bucket** in your AWS account
-2. **Configure AWS credentials**: Run `aws configure` or set environment variables
-3. **Update backend/.env**: Change `S3_BUCKET_NAME` to your actual bucket name
-4. **Verify AWS setup**: Run `make aws-check`
+2. Set the S3 bucket's CORS policy to at least have:
+```
+[
+    {
+        "AllowedHeaders": [
+            "*"
+        ],
+        "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE",
+            "HEAD"
+        ],
+        "AllowedOrigins": [
+            "http://localhost:5173",
+            "http://localhost:3000",
+        ],
+        "ExposeHeaders": [
+            "ETag"
+        ]
+    }
+]
+```
+3. **Configure AWS credentials**: Run `aws configure` or set environment variables
+4. **Update backend/.env**: Change `S3_BUCKET_NAME` to your actual bucket name
+5. **Verify AWS setup**: Run `make aws-check`
 
 ### Environment Files
 
