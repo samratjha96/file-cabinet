@@ -458,6 +458,7 @@ body {
   align-items: center;
   padding: var(--spacing-md);
   width: 100%;
+  gap: var(--spacing-sm);
 }
 
 .file-icon {
@@ -497,6 +498,7 @@ body {
 .file-actions {
   display: flex;
   gap: var(--spacing-xs);
+  margin-left: auto;
 }
 
 .file-action-btn {
@@ -579,8 +581,12 @@ body {
 .checkbox-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--spacing-sm);
   cursor: pointer;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .checkbox-container input[type="checkbox"] {
@@ -592,6 +598,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   background: var(--background-secondary);
+  margin: 0;
 }
 
 .checkbox-container input[type="checkbox"]:checked {
