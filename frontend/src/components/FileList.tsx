@@ -14,18 +14,33 @@ export const FileList: FC<FileListProps> = ({
   files,
   onDownload,
   onBulkDownload,
-  onRefresh,
   isLoading = false,
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isCreatingZip, setIsCreatingZip] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
   // Clear selection when files change
   useEffect(() => {
     setSelectedFiles(new Set());
   }, [files]);
 
-  const toggleFileSelection = (fileKey: string) => {
+  // Handle window resize for responsive layout
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const toggleFileSelection = (fileKey: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+
     setSelectedFiles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(fileKey)) {
@@ -45,11 +60,20 @@ export const FileList: FC<FileListProps> = ({
     }
   };
 
-  const isAllSelected = selectedFiles.size === files.length && files.length > 0;
-  const isIndeterminate =
-    selectedFiles.size > 0 && selectedFiles.size < files.length;
+  const toggleFileExpand = (fileKey: string) => {
+    if (expandedFile === fileKey) {
+      setExpandedFile(null);
+    } else {
+      setExpandedFile(fileKey);
+    }
+  };
 
-  const handleDownload = async () => {
+  const isAllSelected = selectedFiles.size === files.length && files.length > 0;
+  const handleDownload = async (event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+
     const selectedFileItems = files.filter((file) =>
       selectedFiles.has(file.key),
     );
@@ -82,6 +106,11 @@ export const FileList: FC<FileListProps> = ({
         setIsCreatingZip(false);
       }
     }
+  };
+
+  const handleSingleDownload = (file: FileItem, event: React.MouseEvent) => {
+    event.stopPropagation();
+    onDownload(file);
   };
 
   const getFileIcon = (fileName: string) => {
@@ -248,81 +277,102 @@ export const FileList: FC<FileListProps> = ({
               )}
 
               <button
-                onClick={onRefresh}
-                className="refresh-btn"
-                title="Refresh file list"
-                disabled={isLoading}
+                onClick={toggleSelectAll}
+                className="select-all-btn"
+                title={isAllSelected ? "Deselect all" : "Select all"}
               >
-                {isLoading ? "⏳" : "🔄"}
+                {isAllSelected ? "☑️ Deselect All" : "✓ Select All"}
               </button>
             </div>
           </div>
 
-          <div className="file-list-selection-header">
-            <label className="checkbox-container">
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                ref={(input) => {
-                  if (input) input.indeterminate = isIndeterminate;
-                }}
-                onChange={toggleSelectAll}
-                disabled={isLoading}
-              />
-              <span className="checkmark"></span>
-              <span className="select-all-text">
-                {isAllSelected ? "Deselect all" : "Select all"}
-              </span>
-            </label>
-          </div>
-
           <div className="file-list">
-            {files.map((file) => (
-              <div
-                key={file.key}
-                className={`file-item ${selectedFiles.has(file.key) ? "selected" : ""}`}
-              >
-                <div className="file-item-content">
-                  <label className="checkbox-container">
-                    <input
-                      type="checkbox"
-                      checked={selectedFiles.has(file.key)}
-                      onChange={() => toggleFileSelection(file.key)}
-                      disabled={isLoading}
-                    />
-                    <span className="checkmark"></span>
-                  </label>
+            {files.map((file) => {
+              const isSelected = selectedFiles.has(file.key);
+              const isExpanded = expandedFile === file.key;
 
-                  <div className="file-icon">{getFileIcon(file.name)}</div>
-
-                  <div className="file-info">
-                    <div className="file-name" title={file.name}>
-                      {file.name}
-                    </div>
-                    <div className="file-details">
-                      <span className="file-size">
-                        {formatFileSize(file.size || 0)}
-                      </span>
-                      <span className="file-date">
-                        {file.lastModified
-                          ? formatDate(file.lastModified)
-                          : "Unknown"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="file-actions">
-                    <button
-                      onClick={() => onDownload(file)}
-                      className="download-btn"
-                      title={`Download ${file.name}`}
+              return (
+                <div
+                  key={file.key}
+                  className={`file-item ${isSelected ? "selected" : ""} ${isExpanded ? "expanded" : ""}`}
+                  onClick={() =>
+                    isMobile
+                      ? toggleFileExpand(file.key)
+                      : toggleFileSelection(file.key)
+                  }
+                >
+                  <div className="file-item-main">
+                    <div
+                      className="checkbox-container"
+                      onClick={(e) => toggleFileSelection(file.key, e)}
                     >
-                      ⬇️
-                    </button>
+                      <input type="checkbox" checked={isSelected} readOnly />
+                    </div>
+                    <div className="file-icon">{getFileIcon(file.name)}</div>
+                    <div className="file-info">
+                      <div className="file-name">{file.name}</div>
+                      <div className="file-details">
+                        <span>{formatFileSize(file.size)}</span>
+                        <span>{formatDate(new Date(file.lastModified))}</span>
+                      </div>
+                    </div>
+                    <div className="file-actions">
+                      <button
+                        className="file-action-btn"
+                        onClick={(e) => handleSingleDownload(file, e)}
+                        title="Download file"
+                      >
+                        ⬇️
+                      </button>
+                      {isMobile && (
+                        <button
+                          className="file-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFileExpand(file.key);
+                          }}
+                          title={isExpanded ? "Collapse" : "Expand"}
+                        >
+                          {isExpanded ? "▲" : "▼"}
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {isMobile && isExpanded && (
+                    <div className="file-item-details">
+                      <div className="file-detail-row">
+                        <span className="detail-label">Size:</span>
+                        <span className="detail-value">
+                          {formatFileSize(file.size)}
+                        </span>
+                      </div>
+                      <div className="file-detail-row">
+                        <span className="detail-label">Uploaded:</span>
+                        <span className="detail-value">
+                          {formatDate(new Date(file.lastModified))}
+                        </span>
+                      </div>
+                      <div className="file-detail-row">
+                        <span className="detail-label">Type:</span>
+                        <span className="detail-value">
+                          {file.name.split(".").pop()?.toUpperCase() ||
+                            "Unknown"}
+                        </span>
+                      </div>
+                      <div className="file-detail-actions">
+                        <button
+                          className="file-detail-btn"
+                          onClick={(e) => handleSingleDownload(file, e)}
+                        >
+                          ⬇️ Download
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

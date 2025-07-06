@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FileUpload } from "./components/FileUpload";
 import { FileList } from "./components/FileList";
 import { UploadProgress } from "./components/UploadProgress";
@@ -8,6 +8,9 @@ import { formatFileSize } from "./utils";
 import "./App.css";
 
 function App() {
+  const [activeTab, setActiveTab] = useState<"upload" | "files">("upload");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   const {
     uploadItems,
     isUploading,
@@ -26,6 +29,16 @@ function App() {
   useEffect(() => {
     loadFiles();
   }, [loadFiles]);
+
+  // Handle window resize for responsive layout
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleFilesSelected = (selectedFiles: File[]) => {
     const newUploadItems = addFiles(selectedFiles);
@@ -46,6 +59,10 @@ function App() {
         }
       }
       startUploads(newUploadItems);
+      // Switch to files tab after upload starts on mobile
+      if (isMobile) {
+        setActiveTab("files");
+      }
     }
   };
 
@@ -82,81 +99,104 @@ function App() {
       </header>
 
       <main className="app-main">
-        <div className="upload-section">
-          <FileUpload
-            onFilesSelected={handleFilesSelected}
-            isUploading={isUploading}
-          />
+        {(!isMobile || activeTab === "upload") && (
+          <div className="upload-section">
+            <FileUpload
+              onFilesSelected={handleFilesSelected}
+              isUploading={isUploading}
+            />
 
-          {uploadItems.length > 0 && (
-            <div className="upload-progress-section">
-              <div className="upload-progress-header">
-                <h3>
-                  Upload Progress
-                  {uploadStats.total > 0 && (
-                    <span className="upload-stats">
-                      ({uploadStats.completed}/{uploadStats.total})
-                    </span>
-                  )}
-                </h3>
-                <div className="upload-actions">
-                  {hasFailedUploads && (
+            {uploadItems.length > 0 && (
+              <div className="upload-progress-section">
+                <div className="upload-progress-header">
+                  <h3>
+                    Upload Progress
+                    {uploadStats.total > 0 && (
+                      <span className="upload-stats">
+                        ({uploadStats.completed}/{uploadStats.total})
+                      </span>
+                    )}
+                  </h3>
+                  <div className="upload-actions">
+                    {hasFailedUploads && (
+                      <button
+                        onClick={retryFailedUploads}
+                        className="retry-btn"
+                        disabled={isUploading}
+                      >
+                        🔄 Retry Failed
+                      </button>
+                    )}
+                    {hasCompletedUploads && (
+                      <button
+                        onClick={clearCompletedUploads}
+                        className="clear-completed-btn"
+                      >
+                        ✅ Clear Completed
+                      </button>
+                    )}
                     <button
-                      onClick={retryFailedUploads}
-                      className="retry-btn"
+                      onClick={clearAllUploads}
+                      className="clear-all-btn"
                       disabled={isUploading}
                     >
-                      🔄 Retry Failed
+                      🗑️ Clear All
                     </button>
-                  )}
-                  {hasCompletedUploads && (
-                    <button
-                      onClick={clearCompletedUploads}
-                      className="clear-completed-btn"
-                    >
-                      ✅ Clear Completed
-                    </button>
-                  )}
-                  <button
-                    onClick={clearAllUploads}
-                    className="clear-all-btn"
-                    disabled={isUploading}
-                  >
-                    🗑️ Clear All
-                  </button>
+                  </div>
                 </div>
+
+                {isUploading && uploadStats.totalSize > 0 && (
+                  <div className="overall-progress">
+                    <div className="progress-info">
+                      <span>Overall Progress</span>
+                      <span>{getOverallProgress()}%</span>
+                    </div>
+                    <div className="upload-progress-bar">
+                      <div
+                        className="upload-progress-fill"
+                        style={{ width: `${getOverallProgress()}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <UploadProgress uploadItems={uploadItems} />
               </div>
+            )}
+          </div>
+        )}
 
-              {isUploading && uploadStats.totalSize > 0 && (
-                <div className="overall-progress">
-                  <div className="progress-info">
-                    <span>Overall Progress</span>
-                    <span>{getOverallProgress()}%</span>
-                  </div>
-                  <div className="upload-progress-bar">
-                    <div
-                      className="upload-progress-fill"
-                      style={{ width: `${getOverallProgress()}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <UploadProgress uploadItems={uploadItems} />
-            </div>
-          )}
-        </div>
-
-        <div className="files-section">
-          <FileList
-            files={files}
-            onDownload={downloadFile}
-            onBulkDownload={downloadFilesAsZip}
-            onRefresh={loadFiles}
-            isLoading={isLoading}
-          />
-        </div>
+        {(!isMobile || activeTab === "files") && (
+          <div className="files-section">
+            <FileList
+              files={files}
+              onDownload={downloadFile}
+              onBulkDownload={downloadFilesAsZip}
+              onRefresh={loadFiles}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
       </main>
+
+      {isMobile && (
+        <div className="mobile-action-bar">
+          <button
+            className={`mobile-action-button ${activeTab === "upload" ? "active" : ""}`}
+            onClick={() => setActiveTab("upload")}
+          >
+            <span className="mobile-action-icon">📤</span>
+            <span>Upload</span>
+          </button>
+          <button
+            className={`mobile-action-button ${activeTab === "files" ? "active" : ""}`}
+            onClick={() => setActiveTab("files")}
+          >
+            <span className="mobile-action-icon">📂</span>
+            <span>Files {files.length > 0 && `(${files.length})`}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, type FC } from "react";
+import { useState, useRef, type FC, useEffect } from "react";
 import { config } from "../config";
 import { isValidFile } from "../utils";
 
@@ -14,8 +14,19 @@ export const FileUpload: FC<FileUploadProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [showSelectionDialog, setShowSelectionDialog] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle window resize for responsive layout
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -200,33 +211,40 @@ export const FileUpload: FC<FileUploadProps> = ({
         />
 
         <div className="file-upload-content">
-          <div className="file-upload-icon">{isUploading ? "⏳" : "📁"}</div>
+          <div className="file-upload-icon">{isUploading ? "⏳" : "📤"}</div>
 
           <h3>
             {isUploading
               ? "Uploading your files..."
               : isDragOver
-                ? "Drop your files and folders here!"
-                : "Select files or folders to upload"}
+                ? "Drop files here!"
+                : isMobile
+                  ? "Tap to upload files"
+                  : "Select files or folders to upload"}
           </h3>
 
           {!isUploading && (
             <>
+              {!isMobile && (
+                <p>
+                  <strong>Drag & drop</strong> files or folders, or{" "}
+                  <strong>tap here</strong> to choose files
+                </p>
+              )}
               <p>
-                <strong>Drag & drop</strong> files or folders, or{" "}
-                <strong>tap here</strong> to choose files
+                <span className="upload-feature-icon">📁</span>
+                <strong>All file types</strong> supported
               </p>
               <p>
-                ✨ <strong>All file types welcome</strong> - photos, videos,
-                documents, archives, and more
+                <span className="upload-feature-icon">📏</span>
+                Max size: <strong>{maxSizeFormatted}</strong>
               </p>
-              <p>
-                📏 Maximum file size: <strong>{maxSizeFormatted}</strong>
-              </p>
-              <p>
-                🗂️ <strong>Smart upload</strong> - drag entire folders to upload
-                all their contents at once
-              </p>
+              {!isMobile && (
+                <p>
+                  <span className="upload-feature-icon">🗂️</span>
+                  <strong>Folder upload</strong> supported
+                </p>
+              )}
             </>
           )}
 
@@ -243,31 +261,28 @@ export const FileUpload: FC<FileUploadProps> = ({
             className="selection-dialog"
             onClick={(e) => e.stopPropagation()}
           >
-            <h4>What would you like to upload?</h4>
+            <h4>Upload Files</h4>
             <div className="selection-options">
               <button className="selection-option" onClick={handleSelectFiles}>
                 <span className="selection-icon">📄</span>
                 <div>
-                  <div className="selection-text">Individual Files</div>
-                  <div className="selection-description">
-                    Select multiple files
-                  </div>
+                  <h5>Select Files</h5>
+                  <p>Choose one or multiple files</p>
                 </div>
               </button>
+
               <button
                 className="selection-option"
                 onClick={handleSelectFolders}
               >
                 <span className="selection-icon">📁</span>
                 <div>
-                  <div className="selection-text">Entire Folder</div>
-                  <div className="selection-description">
-                    Select a folder with all its contents
-                  </div>
+                  <h5>Select Folder</h5>
+                  <p>Upload an entire folder with all its contents</p>
                 </div>
               </button>
             </div>
-            <button className="selection-cancel" onClick={handleCloseDialog}>
+            <button className="selection-close" onClick={handleCloseDialog}>
               Cancel
             </button>
           </div>
