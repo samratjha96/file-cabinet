@@ -13,7 +13,7 @@ This will install dependencies and start both backend (port 3001) and frontend (
 ### Production (Docker)
 ```bash
 # Copy and update environment file
-cp docker-compose.env.example .env
+cp .env.example .env
 # Edit .env with your AWS credentials and optionally custom ports
 
 # Start production containers
@@ -78,7 +78,7 @@ make dev
 ### Production Mode (Docker)
 ```bash
 # Copy environment template
-cp docker-compose.env.example .env
+cp .env.example .env
 
 # Edit .env to customize ports
 BACKEND_PORT=8080            # Backend port

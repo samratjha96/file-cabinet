@@ -35,17 +35,6 @@ dev: ## Development mode - install dependencies and start servers
 	@cd backend && npm install
 	@echo "$(YELLOW)Installing frontend dependencies...$(NC)"
 	@cd frontend && npm install
-	@echo "$(YELLOW)Setting up environment files...$(NC)"
-	@if [ ! -f backend/.env ]; then \
-		cp backend/env.example backend/.env; \
-		echo "$(YELLOW)Created backend/.env from example$(NC)"; \
-		echo "$(RED)⚠️  Please update backend/.env with your AWS S3 bucket name!$(NC)"; \
-	fi
-	@if [ ! -f frontend/.env ]; then \
-		cp frontend/env.example frontend/.env; \
-		echo "$(YELLOW)Created frontend/.env from example$(NC)"; \
-	fi
-	@echo ""
 	@echo "$(GREEN)Starting development servers...$(NC)"
 	@echo "$(YELLOW)Backend: http://localhost:$${BACKEND_PORT:-3001}$(NC)"
 	@echo "$(YELLOW)Frontend: http://localhost:5173$(NC)"
