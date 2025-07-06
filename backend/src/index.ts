@@ -68,6 +68,111 @@ app.post(
   }),
 );
 
+// Initiate multipart upload
+app.post(
+  "/api/initiate-multipart-upload",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { fileName, fileType, fileSize } = req.body;
+
+    if (!fileName || !fileType || !fileSize) {
+      return res
+        .status(400)
+        .json({ error: "fileName, fileType, and fileSize are required" });
+    }
+
+    const { uploadId, key } = await s3Service.initiateMultipartUpload(
+      fileName,
+      fileType,
+    );
+
+    const chunkSize = s3Service.calculateChunkSize(fileSize);
+    const totalParts = Math.ceil(fileSize / chunkSize);
+
+    res.json({
+      uploadId,
+      key,
+      chunkSize,
+      totalParts,
+      fileName,
+      fileType,
+    });
+  }),
+);
+
+// Generate presigned URL for uploading a part
+app.post(
+  "/api/upload-part-url",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { key, uploadId, partNumber } = req.body;
+
+    if (!key || !uploadId || !partNumber) {
+      return res
+        .status(400)
+        .json({ error: "key, uploadId, and partNumber are required" });
+    }
+
+    const uploadUrl = await s3Service.generatePartUploadUrl(
+      key,
+      uploadId,
+      partNumber,
+    );
+
+    res.json({ uploadUrl, partNumber });
+  }),
+);
+
+// Complete multipart upload
+app.post(
+  "/api/complete-multipart-upload",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { key, uploadId, parts } = req.body;
+
+    if (!key || !uploadId || !parts || !Array.isArray(parts)) {
+      return res
+        .status(400)
+        .json({ error: "key, uploadId, and parts array are required" });
+    }
+
+    // Validate parts array
+    for (const part of parts) {
+      if (!part.ETag || !part.PartNumber) {
+        return res
+          .status(400)
+          .json({ error: "Each part must have ETag and PartNumber" });
+      }
+    }
+
+    const location = await s3Service.completeMultipartUpload(
+      key,
+      uploadId,
+      parts,
+    );
+
+    res.json({
+      success: true,
+      location,
+      key,
+      fileName: s3Service.getFileNameFromKey(key),
+    });
+  }),
+);
+
+// Abort multipart upload
+app.post(
+  "/api/abort-multipart-upload",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { key, uploadId } = req.body;
+
+    if (!key || !uploadId) {
+      return res.status(400).json({ error: "key and uploadId are required" });
+    }
+
+    await s3Service.abortMultipartUpload(key, uploadId);
+
+    res.json({ success: true, message: "Multipart upload aborted" });
+  }),
+);
+
 // List all uploaded files
 app.get(
   "/api/files",
