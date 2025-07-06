@@ -4,11 +4,11 @@ This guide explains how to set up and develop the File Cabinet application using
 
 ## Architecture Overview
 
-The application has been cleaned up and simplified:
+The application is built with a clean, modular architecture:
 
 - **Frontend**: React 19 with TypeScript, using custom hooks for state management
-- **Backend**: Minimal Node.js/Express API with only 3 endpoints
-- **No Complex Features**: Removed multipart upload, simplified configuration, clean component structure
+- **Backend**: Efficient Node.js/Express API with optimized endpoints
+- **Smart Upload Strategy**: Adaptive approach that uses direct uploads for small files and optimized multipart uploads for larger files
 
 ## Code Structure
 

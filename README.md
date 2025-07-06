@@ -122,15 +122,16 @@ This is a simple, clean file upload application with the following key features:
 - **Custom Hooks**: Upload logic (`useUpload`) and file management (`useFiles`) extracted into reusable hooks
 - **Component-Based**: Small, focused components for specific functionality
 - **Shared Utils**: Common functions like `formatFileSize` and file validation utilities
-- **Simple Upload**: Direct file upload to S3 using presigned URLs (no complex multipart handling)
+- **Smart Upload Strategy**: Optimized upload approach that switches between direct and multipart uploads based on file size
 
 ### Backend Architecture
-- **Minimal API**: Only 3 endpoints - upload URL generation, file listing, and download URL generation
+- **Efficient API**: Core endpoints supporting both single and multipart upload strategies
 - **Presigned URLs**: Secure file upload/download without exposing AWS credentials
 - **Clean Configuration**: Simplified config with only essential settings
+- **Batch Operations**: Optimized endpoints for batch operations to reduce HTTP requests
 
 ### Key Design Principles
-- **Keep It Simple**: Removed complex multipart upload logic in favor of simple, reliable uploads
+- **Adaptive Performance**: Uses direct upload for small files and multipart upload for large files
 - **Separation of Concerns**: UI logic separated from business logic via custom hooks
 - **Minimal Dependencies**: Only essential packages, no over-engineering
 - **Clean Code**: Components under 200 lines, hooks focused on single responsibilities 

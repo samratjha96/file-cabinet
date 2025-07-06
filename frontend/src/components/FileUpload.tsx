@@ -1,5 +1,6 @@
 import { useState, useRef, type FC } from "react";
 import { config } from "../config";
+import { isValidFile } from "../utils";
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
@@ -102,41 +103,10 @@ export const FileUpload: FC<FileUploadProps> = ({
   const handleFiles = (files: File[]) => {
     if (files.length === 0) return;
 
-    // Filter files by size, name, and other validity checks
-    const validFiles = files.filter((file) => {
-      // Check if file has a valid name
-      if (!file.name || file.name.trim() === "") {
-        console.warn(`Skipping file with empty name`);
-        return false;
-      }
-
-      // Skip system files and hidden files that might cause issues
-      if (
-        file.name.startsWith(".DS_Store") ||
-        file.name.startsWith("Thumbs.db") ||
-        file.name.startsWith(".")
-      ) {
-        console.warn(`Skipping system/hidden file: ${file.name}`);
-        return false;
-      }
-
-      // Check if file has valid size (skip empty files)
-      if (file.size === 0) {
-        console.warn(`Skipping empty file: ${file.name}`);
-        return false;
-      }
-
-      // Check file size limit
-      const isValidSize = file.size <= config.upload.maxFileSize;
-      if (!isValidSize) {
-        console.warn(
-          `File ${file.name} is too large: ${file.size} bytes (max: ${config.upload.maxFileSize} bytes)`,
-        );
-        return false;
-      }
-
-      return true;
-    });
+    // Use the enhanced utility function with max size and verbose logging
+    const validFiles = files.filter((file) =>
+      isValidFile(file, config.upload.maxFileSize, true),
+    );
 
     if (validFiles.length > 0) {
       // Close the selection dialog since files are being uploaded

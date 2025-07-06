@@ -121,6 +121,39 @@ app.post(
   }),
 );
 
+// Generate presigned URLs for multiple parts in a single request
+app.post(
+  "/api/upload-part-urls-batch",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { key, uploadId, partNumbers } = req.body;
+
+    if (!key || !uploadId || !partNumbers || !Array.isArray(partNumbers)) {
+      return res
+        .status(400)
+        .json({ error: "key, uploadId, and partNumbers array are required" });
+    }
+
+    if (partNumbers.length > 100) {
+      return res
+        .status(400)
+        .json({ error: "Maximum of 100 part numbers allowed per batch" });
+    }
+
+    // Generate URLs for all parts in parallel
+    const partUrlPromises = partNumbers.map(async (partNumber) => {
+      const uploadUrl = await s3Service.generatePartUploadUrl(
+        key,
+        uploadId,
+        partNumber,
+      );
+      return { partNumber, uploadUrl };
+    });
+
+    const partUrls = await Promise.all(partUrlPromises);
+    res.json({ partUrls });
+  }),
+);
+
 // Complete multipart upload
 app.post(
   "/api/complete-multipart-upload",

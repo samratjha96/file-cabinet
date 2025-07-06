@@ -1,10 +1,4 @@
-import axios from "axios";
-import { config } from "./config";
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 30000,
-});
+import { fetchClient, uploadWithProgress } from "./utils/fetchClient";
 
 export interface FileItem {
   key: string;
@@ -60,8 +54,13 @@ export const apiService = {
     fileName: string,
     fileType: string,
   ): Promise<UploadResponse> {
-    const response = await api.post("/api/upload-url", { fileName, fileType });
-    return response.data;
+    return fetchClient<UploadResponse>("/api/upload-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fileName, fileType }),
+    });
   },
 
   // Upload file directly to S3 using presigned URL
@@ -70,17 +69,21 @@ export const apiService = {
     file: File,
     onProgress?: (progress: number) => void,
   ): Promise<void> {
-    await axios.put(uploadUrl, file, {
-      headers: {
-        "Content-Type": file.type,
-      },
-      onUploadProgress: (progressEvent: any) => {
+    const response = await uploadWithProgress(
+      uploadUrl,
+      file,
+      file.type,
+      (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const progress = (progressEvent.loaded / progressEvent.total) * 100;
           onProgress(progress);
         }
       },
-    });
+    );
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`);
+    }
   },
 
   // Initiate multipart upload
@@ -89,12 +92,20 @@ export const apiService = {
     fileType: string,
     fileSize: number,
   ): Promise<MultipartUploadInitResponse> {
-    const response = await api.post("/api/initiate-multipart-upload", {
-      fileName,
-      fileType,
-      fileSize,
-    });
-    return response.data;
+    return fetchClient<MultipartUploadInitResponse>(
+      "/api/initiate-multipart-upload",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName,
+          fileType,
+          fileSize,
+        }),
+      },
+    );
   },
 
   // Get presigned URL for uploading a part
@@ -103,12 +114,39 @@ export const apiService = {
     uploadId: string,
     partNumber: number,
   ): Promise<PartUploadResponse> {
-    const response = await api.post("/api/upload-part-url", {
-      key,
-      uploadId,
-      partNumber,
+    return fetchClient<PartUploadResponse>("/api/upload-part-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key,
+        uploadId,
+        partNumber,
+      }),
     });
-    return response.data;
+  },
+
+  // Get presigned URLs for multiple parts in a batch
+  async getPartUploadUrlsBatch(
+    key: string,
+    uploadId: string,
+    partNumbers: number[],
+  ): Promise<Array<{ partNumber: number; uploadUrl: string }>> {
+    const response = await fetchClient<{
+      partUrls: Array<{ partNumber: number; uploadUrl: string }>;
+    }>("/api/upload-part-urls-batch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key,
+        uploadId,
+        partNumbers,
+      }),
+    });
+    return response.partUrls;
   },
 
   // Upload a part to S3
@@ -117,20 +155,26 @@ export const apiService = {
     chunk: Blob,
     onProgress?: (progress: number) => void,
   ): Promise<string> {
-    const response = await axios.put(uploadUrl, chunk, {
-      headers: {
-        "Content-Type": "application/octet-stream",
-      },
-      onUploadProgress: (progressEvent: any) => {
+    const response = await uploadWithProgress(
+      uploadUrl,
+      chunk,
+      "application/octet-stream",
+      (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const progress = (progressEvent.loaded / progressEvent.total) * 100;
           onProgress(progress);
         }
       },
-    });
+    );
+
+    if (!response.ok) {
+      throw new Error(`Part upload failed with status ${response.status}`);
+    }
 
     // Return the ETag from the response headers
-    return response.headers.etag || response.headers.ETag || "";
+    const etag =
+      response.headers.get("etag") || response.headers.get("ETag") || "";
+    return etag;
   },
 
   // Complete multipart upload
@@ -139,20 +183,37 @@ export const apiService = {
     uploadId: string,
     parts: MultipartUploadPart[],
   ): Promise<MultipartUploadCompleteResponse> {
-    const response = await api.post("/api/complete-multipart-upload", {
-      key,
-      uploadId,
-      parts,
-    });
-    return response.data;
+    return fetchClient<MultipartUploadCompleteResponse>(
+      "/api/complete-multipart-upload",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          key,
+          uploadId,
+          parts,
+        }),
+      },
+    );
   },
 
   // Abort multipart upload
   async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
-    await api.post("/api/abort-multipart-upload", { key, uploadId });
+    await fetchClient("/api/abort-multipart-upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key,
+        uploadId,
+      }),
+    });
   },
 
-  // Upload file using multipart upload
+  // Upload file using multipart upload with optimizations
   async uploadFileMultipart(
     file: File,
     onProgress?: (progress: number) => void,
@@ -171,50 +232,114 @@ export const apiService = {
     const { uploadId, key, chunkSize, totalParts } = initResponse;
 
     try {
-      // Upload parts in parallel batches
+      // Upload parts in parallel batches with optimizations
       const parts: MultipartUploadPart[] = [];
-      const batchSize = 3; // Upload 3 parts concurrently
+      const uploadedBytes = new Map<number, number>(); // Track uploaded bytes per part
 
-      for (let i = 0; i < totalParts; i += batchSize) {
-        const batch = [];
+      // Calculate optimal batch size based on file size
+      // For larger files use larger batches, smaller files use smaller batches
+      let batchSize = 3; // Default
+      if (fileSize > 1024 * 1024 * 500) {
+        // > 500MB
+        batchSize = 5; // More parallelism for large files
+      } else if (fileSize < 1024 * 1024 * 50) {
+        // < 50MB
+        batchSize = 2; // Less parallelism for small files
+      }
 
-        for (let j = i; j < Math.min(i + batchSize, totalParts); j++) {
-          const partNumber = j + 1;
-          const start = j * chunkSize;
-          const end = Math.min(start + chunkSize, fileSize);
-          const chunk = file.slice(start, end);
+      // Limit batch size based on navigator.hardwareConcurrency if available
+      if (typeof navigator !== "undefined" && navigator.hardwareConcurrency) {
+        // Use at most hardwareConcurrency-1 to avoid saturating the CPU
+        batchSize = Math.min(batchSize, navigator.hardwareConcurrency - 1);
+      }
+      batchSize = Math.max(1, batchSize); // Ensure minimum of 1
 
-          batch.push(
-            this.uploadSinglePart(
-              key,
-              uploadId,
-              partNumber,
+      // Prepare all chunks
+      const chunks: { partNumber: number; chunk: Blob }[] = [];
+      for (let i = 0; i < totalParts; i++) {
+        const partNumber = i + 1;
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, fileSize);
+        const chunk = file.slice(start, end);
+        chunks.push({ partNumber, chunk });
+      }
+
+      // Process chunks in batches
+      for (let i = 0; i < chunks.length; i += batchSize) {
+        const currentBatch = chunks.slice(i, i + batchSize);
+
+        // Get presigned URLs for all parts in this batch in a single request
+        const partNumbers = currentBatch.map((c) => c.partNumber);
+        const urlResponses = await this.getPartUploadUrlsBatch(
+          key,
+          uploadId,
+          partNumbers,
+        );
+
+        // Create a map of partNumber to uploadUrl for easy access
+        const urlMap = new Map<number, string>();
+        urlResponses.forEach((resp) => {
+          urlMap.set(resp.partNumber, resp.uploadUrl);
+        });
+
+        // Upload all parts in this batch concurrently
+        const uploadPromises = currentBatch.map(
+          async ({ partNumber, chunk }) => {
+            const uploadUrl = urlMap.get(partNumber);
+            if (!uploadUrl) {
+              throw new Error(`No upload URL for part ${partNumber}`);
+            }
+
+            // Upload this part with individual progress tracking
+            const etag = await this.uploadPart(
+              uploadUrl,
               chunk,
               (partProgress) => {
-                // Calculate overall progress
-                const completedParts = parts.length;
-                const currentBatchProgress = partProgress / batchSize;
-                const overallProgress =
-                  ((completedParts + currentBatchProgress) / totalParts) * 100;
+                // Store current uploaded bytes for this part
+                const partSize = chunk.size;
+                const bytesUploaded = Math.floor(
+                  (partProgress / 100) * partSize,
+                );
+                uploadedBytes.set(partNumber, bytesUploaded);
 
+                // Calculate overall progress based on all parts
                 if (onProgress) {
-                  onProgress(Math.min(overallProgress, 100));
+                  const totalUploaded = Array.from(
+                    uploadedBytes.values(),
+                  ).reduce((sum, bytes) => sum + bytes, 0);
+                  const overallProgress = Math.min(
+                    (totalUploaded / fileSize) * 100,
+                    99.9,
+                  ); // Cap at 99.9% until completion
+                  onProgress(overallProgress);
                 }
               },
-            ),
-          );
-        }
+            );
 
-        // Wait for current batch to complete
-        const batchResults = await Promise.all(batch);
+            return {
+              ETag: etag,
+              PartNumber: partNumber,
+            };
+          },
+        );
+
+        // Wait for all parts in this batch to complete
+        const batchResults = await Promise.all(uploadPromises);
         parts.push(...batchResults);
+
+        // Report progress including this completed batch
+        if (onProgress) {
+          const completedBytes = parts.length * chunkSize;
+          const progress = Math.min((completedBytes / fileSize) * 100, 99.9);
+          onProgress(progress);
+        }
       }
 
       // Complete multipart upload
       await this.completeMultipartUpload(key, uploadId, parts);
 
       if (onProgress) {
-        onProgress(100);
+        onProgress(100); // Ensure we hit 100% when done
       }
     } catch (error) {
       // Abort multipart upload on error
@@ -254,23 +379,29 @@ export const apiService = {
 
   // Get list of uploaded files
   async getFiles(): Promise<FilesResponse> {
-    const response = await api.get("/api/files");
-    return response.data;
+    return fetchClient<FilesResponse>("/api/files");
   },
 
   // Get presigned URL for file download
   async getDownloadUrl(key: string): Promise<DownloadResponse> {
-    const response = await api.post("/api/download-url", { key });
-    return response.data;
+    return fetchClient<DownloadResponse>("/api/download-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ key }),
+    });
   },
 
   // Download file using presigned URL
   async downloadFile(downloadUrl: string, fileName: string): Promise<void> {
-    const response = await axios.get(downloadUrl, {
-      responseType: "blob",
-    });
+    const response = await fetch(downloadUrl);
 
-    const blob = new Blob([response.data]);
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`);
+    }
+
+    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

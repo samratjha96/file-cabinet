@@ -19,7 +19,7 @@ export const useUpload = () => {
   const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
 
   const addFiles = useCallback((files: File[]) => {
-    const validFiles = files.filter(isValidFile);
+    const validFiles = files.filter((file) => isValidFile(file));
 
     if (validFiles.length === 0) return;
 

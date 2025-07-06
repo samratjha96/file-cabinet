@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { apiService, type FileItem } from "../api";
 import JSZip from "jszip";
-import axios from "axios";
 
 export const useFiles = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -60,12 +59,18 @@ export const useFiles = () => {
             const downloadResponse = await apiService.getDownloadUrl(
               fileItem.key,
             );
-            const response = await axios.get(downloadResponse.downloadUrl, {
-              responseType: "blob",
-            });
+            const response = await fetch(downloadResponse.downloadUrl);
+
+            if (!response.ok) {
+              throw new Error(
+                `Failed to download file: ${response.statusText}`,
+              );
+            }
+
+            const blob = await response.blob();
 
             // Add file to the timestamped folder inside the ZIP
-            folder.file(fileItem.name, response.data);
+            folder.file(fileItem.name, blob);
 
             return { success: true, fileName: fileItem.name };
           } catch (error) {
