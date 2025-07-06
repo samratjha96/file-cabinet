@@ -24,6 +24,14 @@ export type LogLevelType = (typeof LogLevel)[keyof typeof LogLevel];
 // Default log level
 let currentLogLevel: LogLevelType = LogLevel.INFO;
 
+// Optional transport function for sending logs to backend
+type TransportFunction = (
+  level: LogLevelType,
+  message: string,
+  details?: any,
+) => void;
+let logTransport: TransportFunction | null = null;
+
 // Storage for logs
 const logHistory: Array<{
   timestamp: string;
@@ -41,6 +49,13 @@ const isProduction = import.meta.env.MODE === "production";
  */
 export const setLogLevel = (level: LogLevelType): void => {
   currentLogLevel = level;
+};
+
+/**
+ * Set a transport function to send logs to another destination (like a backend server)
+ */
+export const setTransport = (transport: TransportFunction): void => {
+  logTransport = transport;
 };
 
 /**
@@ -78,6 +93,16 @@ const log = (level: LogLevelType, message: string, details?: any): void => {
         console.debug(`[${timestamp}] [DEBUG] ${message}${detailsStr}`);
       }
       break;
+  }
+
+  // If we have a transport function, call it
+  if (logTransport) {
+    try {
+      logTransport(level, message, details);
+    } catch (e) {
+      // Don't let transport errors affect application
+      console.error("Logger transport error:", e);
+    }
   }
 };
 
@@ -214,6 +239,7 @@ export const logger = {
   logDownload: logDownloadAttempt,
   logMemory: logMemoryUsage,
   setLevel: setLogLevel,
+  setTransport: setTransport,
 };
 
 export default logger;

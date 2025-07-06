@@ -48,7 +48,32 @@ export interface DownloadResponse {
   fileName: string;
 }
 
+// Base URL for API calls
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 export const apiService = {
+  // Get the base URL for API requests
+  getBaseUrl(): string {
+    return API_BASE_URL;
+  },
+
+  // Send logs to server
+  async sendLogs(
+    logs: Array<{
+      timestamp: string;
+      level: number;
+      message: string;
+      details?: any;
+    }>,
+  ): Promise<void> {
+    await fetchClient("/api/client-logs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ logs }),
+    });
+  },
   // Get presigned URL for file upload
   async getUploadUrl(
     fileName: string,

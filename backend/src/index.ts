@@ -3,6 +3,8 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { config } from "./config";
 import { s3Service } from "./s3Service";
+import logger from "./logger";
+import { requestLogger, errorLogger } from "./middlewares/loggingMiddleware";
 
 const app = express();
 
@@ -38,6 +40,7 @@ app.use(
         return callback(null, true);
       }
 
+      logger.warn(`CORS blocked request from origin: ${origin}`);
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
@@ -45,6 +48,9 @@ app.use(
   }),
 );
 app.use(express.json());
+
+// Apply logging middleware
+app.use(requestLogger);
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
@@ -210,10 +216,8 @@ app.post(
 app.get(
   "/api/files",
   asyncHandler(async (req: Request, res: Response) => {
-    console.log("API: GET /api/files - Fetching files from S3");
     try {
       const files = await s3Service.listFiles();
-      console.log(`API: Found ${files.length} files in S3`);
 
       const formattedFiles = files.map((file) => ({
         key: file.key,
@@ -222,10 +226,15 @@ app.get(
         size: file.size,
       }));
 
-      console.log(`API: Returning ${formattedFiles.length} formatted files`);
+      logger.info(`Listing files complete`, {
+        fileCount: formattedFiles.length,
+        totalSizeMB: formattedFiles
+          .reduce((sum, file) => sum + (file.size || 0) / (1024 * 1024), 0)
+          .toFixed(2),
+      });
       res.json({ files: formattedFiles });
     } catch (error) {
-      console.error("API: Error fetching files from S3:", error);
+      logger.error("Error fetching files from S3", error);
       throw error;
     }
   }),
@@ -250,17 +259,86 @@ app.post(
   }),
 );
 
+// Receive client-side logs
+app.post(
+  "/api/client-logs",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { logs } = req.body;
+
+    if (!logs || !Array.isArray(logs)) {
+      return res.status(400).json({ error: "logs array is required" });
+    }
+
+    // Log each client log with appropriate level
+    logs.forEach((clientLog) => {
+      const { level, message, details, timestamp } = clientLog;
+
+      // Map client log level to server log level
+      switch (level) {
+        case 0: // ERROR
+          logger.error(`Client: ${message}`, {
+            clientTimestamp: timestamp,
+            ...details,
+          });
+          break;
+        case 1: // WARN
+          logger.warn(`Client: ${message}`, {
+            clientTimestamp: timestamp,
+            ...details,
+          });
+          break;
+        case 2: // INFO
+          logger.info(`Client: ${message}`, {
+            clientTimestamp: timestamp,
+            ...details,
+          });
+          break;
+        case 3: // DEBUG
+          logger.debug(`Client: ${message}`, {
+            clientTimestamp: timestamp,
+            ...details,
+          });
+          break;
+        default:
+          logger.info(`Client: ${message}`, {
+            clientTimestamp: timestamp,
+            level,
+            ...details,
+          });
+      }
+    });
+
+    res.json({ success: true, count: logs.length });
+  }),
+);
+
 // Error handling middleware
+app.use(errorLogger);
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error("Unhandled error:", error);
   res.status(500).json({ error: "Internal server error" });
 });
 
 // Start server
 app.listen(config.server.port, "0.0.0.0", () => {
-  console.log(`Server running on port ${config.server.port}`);
-  console.log(`Server bound to: 0.0.0.0:${config.server.port}`);
-  console.log(`CORS origin: ${config.server.corsOrigin}`);
-  console.log(`S3 bucket: ${config.aws.bucketName}`);
-  console.log(`S3 region: ${config.aws.region}`);
+  logger.info(`Server started successfully`, {
+    port: config.server.port,
+    environment: process.env.NODE_ENV || "development",
+    version: process.env.npm_package_version || "1.0.0",
+  });
+
+  logger.info(`Server configuration`, {
+    cors: {
+      origin: config.server.corsOrigin,
+      allowedOrigins: config.server.corsOrigins,
+    },
+    s3: {
+      bucket: config.aws.bucketName,
+      region: config.aws.region,
+      keyPrefix: config.aws.keyPrefix,
+    },
+    upload: {
+      maxFileSize: `${config.upload.maxFileSize / (1024 * 1024)}MB`,
+      presignedUrlExpiry: `${config.upload.presignedUrlExpiry}s`,
+    },
+  });
 });
