@@ -11,8 +11,8 @@ export const FileUpload: FC<FileUploadProps> = ({
   isUploading,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadMode, setUploadMode] = useState<"files" | "folder">("files");
   const [dragCounter, setDragCounter] = useState(0);
+  const [showSelectionDialog, setShowSelectionDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,8 +102,6 @@ export const FileUpload: FC<FileUploadProps> = ({
   const handleFiles = (files: File[]) => {
     if (files.length === 0) return;
 
-    // Show immediate feedback
-
     // Filter files by size, name, and other validity checks
     const validFiles = files.filter((file) => {
       // Check if file has a valid name
@@ -165,11 +163,7 @@ export const FileUpload: FC<FileUploadProps> = ({
       if (window.confirm(errorMessage + "\n\nWould you like to try again?")) {
         // Let user try again
         setTimeout(() => {
-          if (uploadMode === "folder") {
-            folderInputRef.current?.click();
-          } else {
-            fileInputRef.current?.click();
-          }
+          setShowSelectionDialog(true);
         }, 100);
       }
     }
@@ -177,12 +171,21 @@ export const FileUpload: FC<FileUploadProps> = ({
 
   const handleClick = () => {
     if (isUploading) return;
+    setShowSelectionDialog(true);
+  };
 
-    if (uploadMode === "folder") {
-      folderInputRef.current?.click();
-    } else {
-      fileInputRef.current?.click();
-    }
+  const handleSelectFiles = () => {
+    setShowSelectionDialog(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleSelectFolders = () => {
+    setShowSelectionDialog(false);
+    folderInputRef.current?.click();
+  };
+
+  const handleCloseDialog = () => {
+    setShowSelectionDialog(false);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -197,31 +200,6 @@ export const FileUpload: FC<FileUploadProps> = ({
 
   return (
     <div className="file-upload-container">
-      <div className="file-upload-mode-toggle">
-        <button
-          type="button"
-          className={`mode-btn ${uploadMode === "files" ? "active" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setUploadMode("files");
-          }}
-          disabled={isUploading}
-        >
-          📄 <span>Individual Files</span>
-        </button>
-        <button
-          type="button"
-          className={`mode-btn ${uploadMode === "folder" ? "active" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setUploadMode("folder");
-          }}
-          disabled={isUploading}
-        >
-          📁 <span>Whole Folder</span>
-        </button>
-      </div>
-
       <div
         className={`file-upload-area ${isDragOver ? "drag-over" : ""} ${isUploading ? "uploading" : ""}`}
         onDragOver={handleDragOver}
@@ -249,23 +227,21 @@ export const FileUpload: FC<FileUploadProps> = ({
         />
 
         <div className="file-upload-content">
-          <div className="file-upload-icon">
-            {isUploading ? "⏳" : uploadMode === "folder" ? "📁" : "📄"}
-          </div>
+          <div className="file-upload-icon">{isUploading ? "⏳" : "📁"}</div>
 
           <h3>
             {isUploading
               ? "Uploading your files..."
               : isDragOver
-                ? `Drop your ${uploadMode === "folder" ? "folder" : "files"} here!`
-                : `Select ${uploadMode === "folder" ? "a folder" : "files"} to upload`}
+                ? "Drop your files and folders here!"
+                : "Select files or folders to upload"}
           </h3>
 
           {!isUploading && (
             <>
               <p>
-                <strong>Drag & drop</strong> or <strong>tap here</strong> to
-                choose {uploadMode === "folder" ? "a folder" : "files"}
+                <strong>Drag & drop</strong> files or folders, or{" "}
+                <strong>tap here</strong> to choose files
               </p>
               <p>
                 ✨ <strong>All file types welcome</strong> - photos, videos,
@@ -275,9 +251,8 @@ export const FileUpload: FC<FileUploadProps> = ({
                 📏 Maximum file size: <strong>{maxSizeFormatted}</strong>
               </p>
               <p>
-                {uploadMode === "folder"
-                  ? "🗂️ Upload entire folders with all their contents at once"
-                  : "📄 Select multiple files to upload together"}
+                🗂️ <strong>Smart upload</strong> - drag entire folders to upload
+                all their contents at once
               </p>
             </>
           )}
@@ -287,6 +262,44 @@ export const FileUpload: FC<FileUploadProps> = ({
           )}
         </div>
       </div>
+
+      {/* Selection Dialog */}
+      {showSelectionDialog && (
+        <div className="selection-dialog-overlay" onClick={handleCloseDialog}>
+          <div
+            className="selection-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4>What would you like to upload?</h4>
+            <div className="selection-options">
+              <button className="selection-option" onClick={handleSelectFiles}>
+                <span className="selection-icon">📄</span>
+                <div>
+                  <div className="selection-text">Individual Files</div>
+                  <div className="selection-description">
+                    Select multiple files
+                  </div>
+                </div>
+              </button>
+              <button
+                className="selection-option"
+                onClick={handleSelectFolders}
+              >
+                <span className="selection-icon">📁</span>
+                <div>
+                  <div className="selection-text">Entire Folder</div>
+                  <div className="selection-description">
+                    Select a folder with all its contents
+                  </div>
+                </div>
+              </button>
+            </div>
+            <button className="selection-cancel" onClick={handleCloseDialog}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

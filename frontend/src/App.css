@@ -95,67 +95,137 @@ body {
   margin-bottom: var(--spacing-lg);
 }
 
-/* Upload mode toggle - Mobile friendly */
-.file-upload-mode-toggle {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-  background: var(--background-main);
-  padding: var(--spacing-xs);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
-
-.mode-btn {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  color: var(--text-secondary);
-  text-align: center;
-  min-height: 44px; /* iOS touch target */
+/* Selection Dialog */
+.selection-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
+  z-index: 1000;
+  padding: var(--spacing-lg);
 }
 
-.mode-btn:hover {
-  background: var(--background-secondary);
+.selection-dialog {
+  background: var(--background-main);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 400px;
+  width: 100%;
+  animation: fadeIn 0.2s ease;
+}
+
+.selection-dialog h4 {
+  margin: 0 0 var(--spacing-lg) 0;
   color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
 }
 
-.mode-btn.active {
-  background: var(--primary-color);
-  color: white;
+.selection-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.selection-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--background-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  min-height: 70px;
+}
+
+.selection-option:hover {
+  border-color: var(--primary-color);
+  background: var(--background-main);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.mode-btn.active:hover {
-  background: var(--primary-hover);
+.selection-option:active {
+  transform: translateY(0);
 }
 
-.mode-btn:disabled {
-  background: var(--border-light);
-  color: var(--text-light);
-  cursor: not-allowed;
-  transform: none;
+.selection-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
 }
 
-.mode-btn:disabled:hover {
-  background: var(--border-light);
-  color: var(--text-light);
+.selection-text {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
 }
 
-.mode-btn.active:disabled {
-  background: var(--text-light);
-  color: white;
+.selection-description {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-top: var(--spacing-xs);
 }
+
+.selection-option div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.selection-cancel {
+  width: 100%;
+  padding: var(--spacing-md);
+  background: var(--background-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.selection-cancel:hover {
+  background: var(--background-main);
+  color: var(--text-primary);
+}
+
+@media (max-width: 480px) {
+  .selection-dialog {
+    margin: var(--spacing-md);
+    padding: var(--spacing-lg);
+  }
+  
+  .selection-option {
+    min-height: 60px;
+    padding: var(--spacing-md);
+  }
+  
+  .selection-icon {
+    font-size: 1.5rem;
+  }
+  
+  .selection-text {
+    font-size: 0.9rem;
+  }
+  
+  .selection-description {
+    font-size: 0.8rem;
+  }
+}
+
 
 /* Upload area - Mobile optimized */
 .file-upload-area {
@@ -681,9 +751,7 @@ body {
     align-self: flex-end;
   }
   
-  .mode-btn span {
-    display: none;
-  }
+
 }
 
 /* Tablet styles */
@@ -785,10 +853,11 @@ body {
 }
 
 /* Focus styles for accessibility */
-.mode-btn:focus,
 .clear-completed-btn:focus,
 .refresh-btn:focus,
-.download-btn:focus {
+.download-btn:focus,
+.selection-option:focus,
+.selection-cancel:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }

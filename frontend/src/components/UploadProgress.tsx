@@ -39,7 +39,7 @@ export const UploadProgress: FC<UploadProgressProps> = ({ uploadItems }) => {
 
   return (
     <div className="upload-progress-container">
-      {uploadItems.map((item) => (
+      {uploadItems.map((item: UploadItem) => (
         <div key={item.id} className="upload-item">
           <div className="upload-item-header">
             <span className="upload-status-icon">
