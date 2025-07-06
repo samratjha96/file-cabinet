@@ -10,4 +10,17 @@ export const config = {
       parseInt(import.meta.env.VITE_MAX_FILE_SIZE || "5000") * 1024 * 1024, // 5GB default
     supportedFileTypes: ["*"], // Allow all file types
   },
+
+  // Download Configuration
+  download: {
+    chunkSize: 25 * 1024 * 1024, // 25MB chunks for streaming large files
+    streamingThreshold: 100 * 1024 * 1024, // Use streaming for files > 100MB
+    largeZipThreshold: 1000 * 1024 * 1024, // 1GB threshold for large ZIP handling
+  },
+
+  // Concurrent operations
+  maxConcurrentUploads: parseInt(
+    import.meta.env.VITE_MAX_CONCURRENT_UPLOADS || "5",
+  ),
+  maxConcurrentDownloads: 5,
 };

@@ -1,11 +1,11 @@
-import { useState, useEffect, type FC } from "react";
+import { useState, useEffect, useCallback, type FC } from "react";
 import { type FileItem } from "../api";
 import { formatFileSize } from "../utils";
 
 interface FileListProps {
   files: FileItem[];
   onDownload: (file: FileItem) => void;
-  onBulkDownload: (files: FileItem[], zipName: string) => void;
+  onBulkDownload: (files: FileItem[], zipName: string) => Promise<void>;
   onRefresh: () => void;
   isLoading?: boolean;
 }
@@ -115,6 +115,13 @@ export const FileList: FC<FileListProps> = ({
   };
 
   const isAllSelected = selectedFiles.size === files.length && files.length > 0;
+  // Calculate total size of selected files
+  const calculateTotalSelectedSize = useCallback(() => {
+    return files
+      .filter((file) => selectedFiles.has(file.key))
+      .reduce((sum, file) => sum + file.size, 0);
+  }, [files, selectedFiles]);
+
   const handleDownload = async (event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
@@ -134,6 +141,20 @@ export const FileList: FC<FileListProps> = ({
       setIsCreatingZip(true);
 
       try {
+        // Calculate total size and warn user if very large
+        const totalSizeBytes = calculateTotalSelectedSize();
+        const totalSizeMB = totalSizeBytes / (1024 * 1024);
+
+        // Warn if download is larger than 1GB
+        if (totalSizeMB > 1000) {
+          const warningMessage = `You're about to download ${selectedFileItems.length} files (${(totalSizeMB / 1024).toFixed(2)} GB). This could take some time and may require significant memory.`;
+
+          if (!confirm(`${warningMessage}\n\nContinue with download?`)) {
+            setIsCreatingZip(false);
+            return;
+          }
+        }
+
         // Create timestamp for folder name
         const now = new Date();
         const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19); // YYYY-MM-DDTHH-MM-SS format
