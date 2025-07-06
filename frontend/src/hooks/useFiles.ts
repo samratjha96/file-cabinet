@@ -3,6 +3,7 @@ import { apiService, type FileItem } from "../api";
 import JSZip from "jszip";
 import { config } from "../config";
 import { attemptMemoryCleanup } from "../utils/memoryManagement";
+import logger from "../utils/logger";
 
 export const useFiles = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -83,6 +84,18 @@ export const useFiles = () => {
         // Add a small delay to give GC a chance to run
         return new Promise<void>((resolve) => setTimeout(resolve, 50));
       };
+
+      // Log start of download operation
+      const totalSizeMB = calculateTotalSize(fileItems);
+      logger.info(`Starting ZIP download for ${fileItems.length} files`, {
+        totalFiles: fileItems.length,
+        totalSizeMB: totalSizeMB.toFixed(2),
+        zipName,
+      });
+
+      // Log memory usage at the start
+      logger.logMemory();
+
       try {
         const zip = new JSZip();
         const folder = zip.folder(zipName);

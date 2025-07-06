@@ -137,6 +137,34 @@ body {
   gap: var(--spacing-sm);
 }
 
+.test-tool-btn {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.25rem;
+}
+
+.test-tool-btn:hover {
+  background: var(--background-hover);
+}
+
+.test-tool-container {
+  width: 100%;
+  background: var(--background-main);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
 .refresh-files-btn {
   background: var(--background-secondary);
   color: var(--text-primary);
@@ -1083,6 +1111,7 @@ body {
   border: none;
   color: var(--text-secondary);
   font-size: 0.75rem;
+  min-width: 0;
 }
 
 .mobile-action-button.active {

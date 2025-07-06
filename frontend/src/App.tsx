@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import { FileUpload } from "./components/FileUpload";
 import { FileList } from "./components/FileList";
 import { UploadProgress } from "./components/UploadProgress";
+import { TestDownloader } from "./components/TestDownloader";
 import { useUpload } from "./hooks/useUpload";
 import { useFiles } from "./hooks/useFiles";
 import { formatFileSize } from "./utils";
 import "./App.css";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<"upload" | "files">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "files" | "test">(
+    "upload",
+  );
+  const [showTestTool, setShowTestTool] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const {
@@ -95,10 +99,22 @@ function App() {
           >
             {isLoading ? "⏳" : "🔄"}
           </button>
+          <button
+            className="test-tool-btn"
+            onClick={() => setShowTestTool(!showTestTool)}
+            title="Toggle test tool"
+          >
+            🧪
+          </button>
         </div>
       </header>
 
       <main className="app-main">
+        {showTestTool && (
+          <div className="test-tool-container">
+            <TestDownloader />
+          </div>
+        )}
         {(!isMobile || activeTab === "upload") && (
           <div className="upload-section">
             <FileUpload
@@ -195,6 +211,15 @@ function App() {
             <span className="mobile-action-icon">📂</span>
             <span>Files {files.length > 0 && `(${files.length})`}</span>
           </button>
+          {showTestTool && (
+            <button
+              className={`mobile-action-button ${activeTab === "test" ? "active" : ""}`}
+              onClick={() => setActiveTab("test")}
+            >
+              <span className="mobile-action-icon">🧪</span>
+              <span>Test</span>
+            </button>
+          )}
         </div>
       )}
     </div>
