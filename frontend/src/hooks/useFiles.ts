@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
 import { apiService, type FileItem } from "../api";
+import JSZip from "jszip";
+import axios from "axios";
 
 export const useFiles = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -42,10 +44,92 @@ export const useFiles = () => {
     }
   }, []);
 
+  const downloadFilesAsZip = useCallback(
+    async (fileItems: FileItem[], zipName: string) => {
+      try {
+        const zip = new JSZip();
+        const folder = zip.folder(zipName);
+
+        if (!folder) {
+          throw new Error("Failed to create ZIP folder");
+        }
+
+        // Download all files as blobs and add to ZIP
+        const downloadPromises = fileItems.map(async (fileItem) => {
+          try {
+            const downloadResponse = await apiService.getDownloadUrl(
+              fileItem.key,
+            );
+            const response = await axios.get(downloadResponse.downloadUrl, {
+              responseType: "blob",
+            });
+
+            // Add file to the timestamped folder inside the ZIP
+            folder.file(fileItem.name, response.data);
+
+            return { success: true, fileName: fileItem.name };
+          } catch (error) {
+            console.error(`Error downloading file ${fileItem.name}:`, error);
+            return { success: false, fileName: fileItem.name, error };
+          }
+        });
+
+        const results = await Promise.all(downloadPromises);
+
+        // Check if any downloads failed
+        const failedDownloads = results.filter((result) => !result.success);
+        if (failedDownloads.length > 0) {
+          const failedNames = failedDownloads
+            .map((result) => result.fileName)
+            .join(", ");
+          console.warn(`Failed to download files: ${failedNames}`);
+
+          // Still create ZIP with successful downloads if any succeeded
+          const successfulDownloads = results.filter(
+            (result) => result.success,
+          );
+          if (successfulDownloads.length === 0) {
+            throw new Error("All file downloads failed");
+          }
+
+          // Notify user about partial success
+          alert(
+            `Warning: ${failedDownloads.length} file(s) failed to download: ${failedNames}\n\nDownloading ${successfulDownloads.length} successful files as ZIP.`,
+          );
+        }
+
+        // Generate ZIP file
+        const zipBlob = await zip.generateAsync({
+          type: "blob",
+          compression: "DEFLATE",
+          compressionOptions: { level: 6 }, // Good balance of compression vs speed
+        });
+
+        // Trigger download
+        const url = window.URL.createObjectURL(zipBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${zipName}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Bulk download error:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Bulk download failed";
+        alert(`Unable to create ZIP download: ${errorMessage}`);
+        throw error;
+      }
+    },
+    [],
+  );
+
   return {
     files,
     isLoading,
     loadFiles,
     downloadFile,
+    downloadFilesAsZip,
   };
 };

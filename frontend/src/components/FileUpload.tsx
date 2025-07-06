@@ -139,6 +139,9 @@ export const FileUpload: FC<FileUploadProps> = ({
     });
 
     if (validFiles.length > 0) {
+      // Close the selection dialog since files are being uploaded
+      setShowSelectionDialog(false);
+
       onFilesSelected(validFiles);
 
       // Show info about filtered files

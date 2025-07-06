@@ -19,7 +19,8 @@ function App() {
     clearAllUploads,
   } = useUpload();
 
-  const { files, isLoading, loadFiles, downloadFile } = useFiles();
+  const { files, isLoading, loadFiles, downloadFile, downloadFilesAsZip } =
+    useFiles();
 
   // Load files on component mount
   useEffect(() => {
@@ -150,6 +151,7 @@ function App() {
           <FileList
             files={files}
             onDownload={downloadFile}
+            onBulkDownload={downloadFilesAsZip}
             onRefresh={loadFiles}
             isLoading={isLoading}
           />
