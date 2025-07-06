@@ -97,10 +97,12 @@ export const FileList: FC<FileListProps> = ({
   };
 
   const toggleSelectAll = () => {
-    if (selectedFiles.size === visibleFiles.length) {
+    if (selectedFiles.size === files.length) {
+      // If all files are selected, deselect all
       setSelectedFiles(new Set());
     } else {
-      setSelectedFiles(new Set(visibleFiles.map((file) => file.key)));
+      // Otherwise, select all files (not just visible ones)
+      setSelectedFiles(new Set(files.map((file) => file.key)));
     }
   };
 
@@ -112,8 +114,7 @@ export const FileList: FC<FileListProps> = ({
     }
   };
 
-  const isAllSelected =
-    selectedFiles.size === visibleFiles.length && visibleFiles.length > 0;
+  const isAllSelected = selectedFiles.size === files.length && files.length > 0;
   const handleDownload = async (event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
@@ -314,6 +315,20 @@ export const FileList: FC<FileListProps> = ({
     return pageNumbers;
   };
 
+  // Calculate how many selected files are not visible on current page
+  const selectedFilesNotVisible = () => {
+    const visibleKeys = new Set(visibleFiles.map((file) => file.key));
+    let count = 0;
+
+    selectedFiles.forEach((key) => {
+      if (!visibleKeys.has(key)) {
+        count++;
+      }
+    });
+
+    return count;
+  };
+
   return (
     <div className="file-list-container fixed-width">
       <div className="file-list-header">
@@ -378,12 +393,23 @@ export const FileList: FC<FileListProps> = ({
               <button
                 onClick={toggleSelectAll}
                 className="select-all-btn"
-                title={isAllSelected ? "Deselect all" : "Select all visible"}
+                title={isAllSelected ? "Deselect all" : "Select all files"}
               >
                 {isAllSelected ? "☑️ Deselect All" : "✓ Select All"}
               </button>
             </div>
           </div>
+
+          {/* Notification for selected files not visible on current page */}
+          {selectedFilesNotVisible() > 0 && (
+            <div className="selection-notification">
+              <span>
+                ⚠️ {selectedFilesNotVisible()} selected{" "}
+                {selectedFilesNotVisible() === 1 ? "file is" : "files are"} not
+                visible on this page
+              </span>
+            </div>
+          )}
 
           <div className="file-list">
             {visibleFiles.map((file) => {

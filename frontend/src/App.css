@@ -48,6 +48,10 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
+
+  /* New color variables for selection notification */
+  --color-warning-bg: rgba(255, 204, 0, 0.15);
+  --color-warning-text: #b38f00;
 }
 
 body {
@@ -1163,4 +1167,15 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+/* Selection notification */
+.selection-notification {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
 }
