@@ -61,8 +61,23 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>📁 File Cabinet</h1>
-        <p>Upload and manage your files securely</p>
+        <div className="app-logo">
+          <div className="app-logo-icon">📁</div>
+          <div className="app-title">
+            <h1>File Cabinet</h1>
+            <p>Upload and manage your files securely</p>
+          </div>
+        </div>
+        <div className="app-actions">
+          <button
+            className="refresh-files-btn"
+            onClick={loadFiles}
+            disabled={isLoading}
+            title="Refresh files"
+          >
+            {isLoading ? "⏳" : "🔄"}
+          </button>
+        </div>
       </header>
 
       <main className="app-main">

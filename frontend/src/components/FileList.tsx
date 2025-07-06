@@ -126,28 +126,9 @@ export const FileList: FC<FileListProps> = ({
     <div className="file-list-container">
       <div className="file-list-header">
         <h3>
-          📂 Your Files ({files.length})
-          {isLoading && (
-            <span
-              style={{
-                fontSize: "0.875rem",
-                color: "var(--text-secondary)",
-                fontWeight: "normal",
-              }}
-            >
-              {" "}
-              Loading...
-            </span>
-          )}
+          📂 Your Files {files.length > 0 && `(${files.length})`}
+          {isLoading && <span className="loading-indicator">Loading...</span>}
         </h3>
-        <button
-          onClick={onRefresh}
-          className="refresh-btn"
-          title="Refresh file list"
-          disabled={isLoading}
-        >
-          {isLoading ? "⏳" : "🔄"}
-        </button>
       </div>
 
       {files.length === 0 && !isLoading ? (
@@ -164,41 +145,56 @@ export const FileList: FC<FileListProps> = ({
           <p>Loading your files...</p>
         </div>
       ) : (
-        <div className="file-list">
-          {files.map((file) => (
-            <div key={file.key} className="file-item">
-              <div className="file-item-content">
-                <div className="file-icon">{getFileIcon(file.name)}</div>
+        <>
+          <div className="file-list-toolbar">
+            <div className="file-count">
+              {files.length} {files.length === 1 ? "file" : "files"}
+            </div>
+            <button
+              onClick={onRefresh}
+              className="refresh-btn"
+              title="Refresh file list"
+              disabled={isLoading}
+            >
+              {isLoading ? "⏳" : "🔄"}
+            </button>
+          </div>
+          <div className="file-list">
+            {files.map((file) => (
+              <div key={file.key} className="file-item">
+                <div className="file-item-content">
+                  <div className="file-icon">{getFileIcon(file.name)}</div>
 
-                <div className="file-info">
-                  <div className="file-name" title={file.name}>
-                    {file.name}
+                  <div className="file-info">
+                    <div className="file-name" title={file.name}>
+                      {file.name}
+                    </div>
+                    <div className="file-details">
+                      <span className="file-size">
+                        {formatFileSize(file.size || 0)}
+                      </span>
+                      <span className="file-date">
+                        {file.lastModified
+                          ? formatDate(file.lastModified)
+                          : "Unknown"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="file-details">
-                    <span className="file-size">
-                      {formatFileSize(file.size || 0)}
-                    </span>
-                    <span className="file-date">
-                      {file.lastModified
-                        ? formatDate(file.lastModified)
-                        : "Unknown"}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="file-actions">
-                  <button
-                    onClick={() => onDownload(file)}
-                    className="download-btn"
-                    title={`Download ${file.name}`}
-                  >
-                    ⬇️
-                  </button>
+                  <div className="file-actions">
+                    <button
+                      onClick={() => onDownload(file)}
+                      className="download-btn"
+                      title={`Download ${file.name}`}
+                    >
+                      ⬇️
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
