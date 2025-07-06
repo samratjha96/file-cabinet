@@ -21,9 +21,20 @@ export const FileList: FC<FileListProps> = ({
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
+  const totalPages = Math.ceil(files.length / ITEMS_PER_PAGE);
+
+  // Calculate visible files based on pagination
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const visibleFiles = files.slice(startIndex, endIndex);
+
   // Clear selection when files change
   useEffect(() => {
     setSelectedFiles(new Set());
+    setCurrentPage(1);
   }, [files]);
 
   // Handle window resize for responsive layout
@@ -35,6 +46,39 @@ export const FileList: FC<FileListProps> = ({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+      // Scroll to top of list when changing pages
+      const fileListElement = document.querySelector(".file-list");
+      if (fileListElement) {
+        fileListElement.scrollTop = 0;
+      }
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      // Scroll to top of list when changing pages
+      const fileListElement = document.querySelector(".file-list");
+      if (fileListElement) {
+        fileListElement.scrollTop = 0;
+      }
+    }
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to top of list when changing pages
+      const fileListElement = document.querySelector(".file-list");
+      if (fileListElement) {
+        fileListElement.scrollTop = 0;
+      }
+    }
+  };
 
   const toggleFileSelection = (fileKey: string, event?: React.MouseEvent) => {
     if (event) {
@@ -53,10 +97,10 @@ export const FileList: FC<FileListProps> = ({
   };
 
   const toggleSelectAll = () => {
-    if (selectedFiles.size === files.length) {
+    if (selectedFiles.size === visibleFiles.length) {
       setSelectedFiles(new Set());
     } else {
-      setSelectedFiles(new Set(files.map((file) => file.key)));
+      setSelectedFiles(new Set(visibleFiles.map((file) => file.key)));
     }
   };
 
@@ -68,7 +112,8 @@ export const FileList: FC<FileListProps> = ({
     }
   };
 
-  const isAllSelected = selectedFiles.size === files.length && files.length > 0;
+  const isAllSelected =
+    selectedFiles.size === visibleFiles.length && visibleFiles.length > 0;
   const handleDownload = async (event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
@@ -220,8 +265,57 @@ export const FileList: FC<FileListProps> = ({
     }).format(new Date(date));
   };
 
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5; // Show up to 5 page numbers
+
+    if (totalPages <= maxPagesToShow) {
+      // If we have 5 or fewer pages, show all of them
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Always show first page
+      pageNumbers.push(1);
+
+      // Calculate start and end of page range
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+      // Adjust if we're near the beginning or end
+      if (currentPage <= 2) {
+        endPage = 4;
+      } else if (currentPage >= totalPages - 1) {
+        startPage = totalPages - 3;
+      }
+
+      // Add ellipsis if needed
+      if (startPage > 2) {
+        pageNumbers.push("...");
+      }
+
+      // Add page numbers in range
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+
+      // Add ellipsis if needed
+      if (endPage < totalPages - 1) {
+        pageNumbers.push("...");
+      }
+
+      // Always show last page
+      if (totalPages > 1) {
+        pageNumbers.push(totalPages);
+      }
+    }
+
+    return pageNumbers;
+  };
+
   return (
-    <div className="file-list-container">
+    <div className="file-list-container fixed-width">
       <div className="file-list-header">
         <h3>
           📂 Your Files {files.length > 0 && `(${files.length})`}
@@ -253,6 +347,11 @@ export const FileList: FC<FileListProps> = ({
                   • {selectedFiles.size} selected
                 </span>
               )}
+              <span className="pagination-info">
+                {" "}
+                • Showing {startIndex + 1}-{Math.min(endIndex, files.length)} of{" "}
+                {files.length}
+              </span>
             </div>
 
             <div className="toolbar-actions">
@@ -279,7 +378,7 @@ export const FileList: FC<FileListProps> = ({
               <button
                 onClick={toggleSelectAll}
                 className="select-all-btn"
-                title={isAllSelected ? "Deselect all" : "Select all"}
+                title={isAllSelected ? "Deselect all" : "Select all visible"}
               >
                 {isAllSelected ? "☑️ Deselect All" : "✓ Select All"}
               </button>
@@ -287,7 +386,7 @@ export const FileList: FC<FileListProps> = ({
           </div>
 
           <div className="file-list">
-            {files.map((file) => {
+            {visibleFiles.map((file) => {
               const isSelected = selectedFiles.has(file.key);
               const isExpanded = expandedFile === file.key;
 
@@ -310,7 +409,12 @@ export const FileList: FC<FileListProps> = ({
                     </div>
                     <div className="file-icon">{getFileIcon(file.name)}</div>
                     <div className="file-info">
-                      <div className="file-name">{file.name}</div>
+                      <div
+                        className="file-name text-ellipsis"
+                        title={file.name}
+                      >
+                        {file.name}
+                      </div>
                       <div className="file-details">
                         <span>{formatFileSize(file.size)}</span>
                         <span>{formatDate(new Date(file.lastModified))}</span>
@@ -374,6 +478,45 @@ export const FileList: FC<FileListProps> = ({
               );
             })}
           </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="pagination-controls">
+              <button
+                className="pagination-button"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+              >
+                ◀ Previous
+              </button>
+
+              <div className="pagination-pages">
+                {getPageNumbers().map((page, index) =>
+                  typeof page === "number" ? (
+                    <button
+                      key={index}
+                      className={`pagination-page-button ${currentPage === page ? "active" : ""}`}
+                      onClick={() => goToPage(page)}
+                    >
+                      {page}
+                    </button>
+                  ) : (
+                    <span key={index} className="pagination-ellipsis">
+                      ...
+                    </span>
+                  ),
+                )}
+              </div>
+
+              <button
+                className="pagination-button"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Next ▶
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
