@@ -232,29 +232,81 @@ export const TestDownloader = () => {
             if (file.size > 100 * 1024 * 1024) {
               // 100MB
               logger.debug(
-                `Using HttpReader for streaming large file: ${file.name}`,
+                `Using manual streaming for large file: ${file.name}`,
               );
 
-              // Create a reader that will stream directly from the URL
-              const reader = new zipjs.HttpReader(downloadResponse.downloadUrl);
-
-              // Add the file to the zip
-              await zipWriter.add(file.name, reader, {
-                level: compressionLevel,
-                onprogress: (index, max) => {
-                  // Log progress periodically
-                  if (
-                    max > 0 &&
-                    index % Math.max(1, Math.floor(max / 10)) < 1
-                  ) {
-                    const percent = Math.round((index / max) * 100);
-                    logger.debug(
-                      `Processing ${file.name}: ${percent}% complete`,
-                    );
-                  }
-                  return Promise.resolve();
-                },
+              // Fetch the file with credentials included
+              const response = await fetch(downloadResponse.downloadUrl, {
+                credentials: "include",
               });
+
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to download file: ${response.status} ${response.statusText}`,
+                );
+              }
+
+              // For large files, we need to manually stream the response
+              if (response.body) {
+                const reader = response.body.getReader();
+
+                // Collect chunks
+                const chunks: Uint8Array[] = [];
+                let totalBytes = 0;
+                let lastLoggedProgress = 0;
+
+                // Read the stream
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+
+                  if (value) {
+                    chunks.push(value);
+                    totalBytes += value.length;
+
+                    // Log progress periodically (every ~10%)
+                    const progress = Math.floor((totalBytes / file.size) * 100);
+                    if (progress >= lastLoggedProgress + 10) {
+                      logger.debug(
+                        `Downloaded ${progress}% of ${file.name} (${formatFileSize(totalBytes)} of ${formatFileSize(file.size)})`,
+                      );
+                      lastLoggedProgress = progress;
+                    }
+                  }
+                }
+
+                // Combine chunks into a single array
+                const allBytes = new Uint8Array(totalBytes);
+                let offset = 0;
+                for (const chunk of chunks) {
+                  allBytes.set(chunk, offset);
+                  offset += chunk.length;
+                }
+
+                // Add the file to the zip using a Uint8Array reader
+                await zipWriter.add(
+                  file.name,
+                  new zipjs.Uint8ArrayReader(allBytes),
+                  {
+                    level: compressionLevel,
+                    onprogress: (index, max) => {
+                      // Log progress periodically
+                      if (
+                        max > 0 &&
+                        index % Math.max(1, Math.floor(max / 10)) < 1
+                      ) {
+                        const percent = Math.round((index / max) * 100);
+                        logger.debug(
+                          `Processing ${file.name}: ${percent}% complete`,
+                        );
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                );
+              } else {
+                throw new Error("Response doesn't have a body stream");
+              }
 
               logger.debug(`Successfully added ${file.name} to ZIP`);
             } else {

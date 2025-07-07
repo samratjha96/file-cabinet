@@ -386,28 +386,83 @@ export const useFiles = () => {
 
                 // For large files, create a readable stream from the response
                 if (response.body) {
-                  // Create a reader for the response stream
-                  const reader = new zipjs.HttpReader(
-                    downloadResponse.downloadUrl,
-                  );
+                  // Manually stream response instead of using HttpReader to avoid auth issues
+                  logger.debug(`Using manual streaming for ${fileItem.name}`);
 
-                  // Use maximal compression level based on file size
-                  const compressionLevel = getCompressionLevel(fileItem.size);
-
-                  // Add the file to the zip with the stream reader
-                  await zipWriter.add(fileItem.name, reader, {
-                    level: compressionLevel,
-                    onprogress: (index, max) => {
-                      if (index % (max / 10) < 1) {
-                        // Log progress every ~10%
-                        const percent = Math.round((index / max) * 100);
-                        logger.debug(
-                          `Processing ${fileItem.name}: ${percent}% complete`,
-                        );
-                      }
-                      return Promise.resolve();
-                    },
+                  // Fetch the file with full credentials
+                  const response = await fetch(downloadResponse.downloadUrl, {
+                    credentials: "include",
                   });
+
+                  if (!response.ok) {
+                    throw new Error(
+                      `Failed to download file: ${response.status} ${response.statusText}`,
+                    );
+                  }
+
+                  // For large files, we need to manually stream the response
+                  if (response.body) {
+                    const reader = response.body.getReader();
+
+                    // Collect chunks
+                    const chunks: Uint8Array[] = [];
+                    let totalBytes = 0;
+                    let lastLoggedProgress = 0;
+
+                    // Read the stream
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) break;
+
+                      if (value) {
+                        chunks.push(value);
+                        totalBytes += value.length;
+
+                        // Log progress periodically (every ~10%)
+                        const progress = Math.floor(
+                          (totalBytes / fileItem.size) * 100,
+                        );
+                        if (progress >= lastLoggedProgress + 10) {
+                          logger.debug(
+                            `Downloaded ${progress}% of ${fileItem.name} (${formatSizeForLog(totalBytes)} of ${formatSizeForLog(fileItem.size)})`,
+                          );
+                          lastLoggedProgress = progress;
+                        }
+                      }
+                    }
+
+                    // Combine chunks into a single array
+                    const allBytes = new Uint8Array(totalBytes);
+                    let offset = 0;
+                    for (const chunk of chunks) {
+                      allBytes.set(chunk, offset);
+                      offset += chunk.length;
+                    }
+
+                    // Use maximal compression level based on file size
+                    const compressionLevel = getCompressionLevel(fileItem.size);
+
+                    // Add the file to the zip using a Uint8Array reader
+                    await zipWriter.add(
+                      fileItem.name,
+                      new zipjs.Uint8ArrayReader(allBytes),
+                      {
+                        level: compressionLevel,
+                        onprogress: (index, max) => {
+                          if (index % Math.max(1, Math.floor(max / 10)) < 1) {
+                            // Log progress every ~10%
+                            const percent = Math.round((index / max) * 100);
+                            logger.debug(
+                              `Processing ${fileItem.name}: ${percent}% complete`,
+                            );
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    );
+                  } else {
+                    throw new Error("Response doesn't have a body stream");
+                  }
 
                   successCount++;
                   logger.info(`Successfully added ${fileItem.name} to ZIP`);
