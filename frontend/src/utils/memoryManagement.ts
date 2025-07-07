@@ -17,20 +17,46 @@ declare global {
  * Attempt to free memory by forcing garbage collection
  * (Note: This is a best-effort approach, as JavaScript doesn't have direct GC control)
  */
-export const attemptMemoryCleanup = (): void => {
+export const attemptMemoryCleanup = (): Promise<void> => {
   // Clear any object references that might be holding memory
   if (typeof window !== "undefined") {
     // Clear any URL objects that may be holding references to large blobs
     try {
+      // Create some temporary objects and immediately discard them
+      // This can help trigger garbage collection in some browsers
+      const arr = [];
+      for (let i = 0; i < 1000; i++) {
+        arr.push(new ArrayBuffer(1024 * 1024)); // Allocate 1MB
+      }
+      // Clear the array reference
+      arr.length = 0;
+
       // Only available in Chrome-based browsers
       if (window.performance && "memory" in window.performance) {
-        // This is just for debugging purposes
-        console.log("Memory cleanup attempted");
+        const memBefore = window.performance.memory?.usedJSHeapSize || 0;
+        console.log(
+          `Memory before cleanup: ${(memBefore / (1024 * 1024)).toFixed(2)} MB`,
+        );
       }
+
+      // Return a promise that resolves after a small delay
+      // to give the browser time to run GC
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          if (window.performance && "memory" in window.performance) {
+            const memAfter = window.performance.memory?.usedJSHeapSize || 0;
+            console.log(
+              `Memory after cleanup: ${(memAfter / (1024 * 1024)).toFixed(2)} MB`,
+            );
+          }
+          resolve();
+        }, 100);
+      });
     } catch (e) {
       // Ignore errors from accessing performance.memory
     }
   }
+  return Promise.resolve();
 };
 
 /**
@@ -76,12 +102,16 @@ export const checkMemorySufficient = (estimatedSizeMB: number): boolean => {
  * @returns number - Recommended chunk size in items
  */
 export const calculateOptimalChunkSize = (totalSizeMB: number): number => {
-  if (totalSizeMB > 5000) {
-    return 2; // For extremely large operations (> 5GB)
+  if (totalSizeMB > 30000) {
+    return 1; // For enormous operations (> 30GB)
+  } else if (totalSizeMB > 10000) {
+    return 2; // For extremely large operations (> 10GB)
+  } else if (totalSizeMB > 5000) {
+    return 3; // For very large operations (> 5GB)
   } else if (totalSizeMB > 1000) {
-    return 3; // For very large operations (> 1GB)
+    return 5; // For large operations (> 1GB)
   } else if (totalSizeMB > 500) {
-    return 5; // For large operations (> 500MB)
+    return 8; // For medium operations (> 500MB)
   }
 
   return 10; // Default for smaller operations

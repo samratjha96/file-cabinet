@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { apiService } from "../api";
 import { generateId, isValidFile } from "../utils";
 
@@ -14,6 +14,27 @@ export interface UploadItem {
 export const useUpload = () => {
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Keep active uploads in a ref to access from event listeners
+  const activeUploadsRef = useRef<{ [id: string]: boolean }>({});
+
+  // Set up beforeunload handler to warn when leaving during active uploads
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasActiveUploads = Object.keys(activeUploadsRef.current).length > 0;
+
+      if (isUploading && hasActiveUploads) {
+        // Show browser alert about unsaved changes
+        const message =
+          "Warning: You have uploads in progress. Leaving this page will interrupt these uploads. Are you sure you want to leave?";
+        e.returnValue = message; // Standard for most browsers
+        return message; // For some older browsers
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isUploading]);
 
   // Threshold for using multipart upload (5MB)
   const MULTIPART_THRESHOLD = 5 * 1024 * 1024;
@@ -116,6 +137,13 @@ export const useUpload = () => {
     async (items: UploadItem[]) => {
       setIsUploading(true);
 
+      // Track active uploads in ref for beforeunload handler
+      const newActiveUploads = { ...activeUploadsRef.current };
+      items.forEach((item) => {
+        newActiveUploads[item.id] = true;
+      });
+      activeUploadsRef.current = newActiveUploads;
+
       // Update all items to uploading status
       setUploadItems((prev) =>
         prev.map((item) =>
@@ -134,8 +162,25 @@ export const useUpload = () => {
         }
       });
 
-      await Promise.allSettled(uploadPromises);
-      setIsUploading(false);
+      const results = await Promise.allSettled(uploadPromises);
+
+      // Remove completed uploads from activeUploads
+      const updatedActiveUploads = { ...activeUploadsRef.current };
+      items.forEach((item) => {
+        delete updatedActiveUploads[item.id];
+      });
+      activeUploadsRef.current = updatedActiveUploads;
+
+      const hasActive = Object.keys(updatedActiveUploads).length > 0;
+      if (!hasActive) {
+        setIsUploading(false);
+      }
+
+      // Check for failures and report errors
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        console.error(`${failures.length} uploads failed:`, failures);
+      }
     },
     [uploadSingleFile, uploadMultipartFile],
   );
