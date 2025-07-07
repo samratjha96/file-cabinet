@@ -1,36 +1,9 @@
 /**
- * Enhanced logging utility for diagnosing issues
+ * Simple logging utility for diagnosing ZIP creation issues
  */
 
-// Log levels as simple constants instead of enum
-export const LogLevel = {
-  ERROR: 0,
-  WARN: 1,
-  INFO: 2,
-  DEBUG: 3,
-} as const;
-
-// Map log level values to strings
-const LogLevelStrings = {
-  [LogLevel.ERROR]: "ERROR",
-  [LogLevel.WARN]: "WARN",
-  [LogLevel.INFO]: "INFO",
-  [LogLevel.DEBUG]: "DEBUG",
-};
-
-// Type for log level values
-export type LogLevelType = (typeof LogLevel)[keyof typeof LogLevel];
-
-// Default log level
-let currentLogLevel: LogLevelType = LogLevel.INFO;
-
-// Optional transport function for sending logs to backend
-type TransportFunction = (
-  level: LogLevelType,
-  message: string,
-  details?: any,
-) => void;
-let logTransport: TransportFunction | null = null;
+// Determine if we're in production mode
+const isProduction = import.meta.env.MODE === "production";
 
 // Storage for logs
 const logHistory: Array<{
@@ -41,97 +14,62 @@ const logHistory: Array<{
 }> = [];
 const MAX_LOG_HISTORY = 100;
 
-// Determine if we're in production mode
-const isProduction = import.meta.env.MODE === "production";
-
 /**
- * Set the current log level
+ * Log an error message
  */
-export const setLogLevel = (level: LogLevelType): void => {
-  currentLogLevel = level;
-};
-
-/**
- * Set a transport function to send logs to another destination (like a backend server)
- */
-export const setTransport = (transport: TransportFunction): void => {
-  logTransport = transport;
-};
-
-/**
- * Log a message with the specified level
- */
-const log = (level: LogLevelType, message: string, details?: any): void => {
-  // Skip if log level is too high
-  if (level > currentLogLevel) return;
-
+export const logError = (message: string, details?: any): void => {
   const timestamp = new Date().toISOString();
-  const levelStr = LogLevelStrings[level];
+  console.error(`[${timestamp}] [ERROR] ${message}`, details || "");
 
   // Save to log history
   if (logHistory.length >= MAX_LOG_HISTORY) {
     logHistory.shift(); // Remove oldest log
   }
-  logHistory.push({ timestamp, level: levelStr, message, details });
-
-  // Format details for console
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
-
-  // Output to console depending on level
-  switch (level) {
-    case LogLevel.ERROR:
-      console.error(`[${timestamp}] [ERROR] ${message}${detailsStr}`);
-      break;
-    case LogLevel.WARN:
-      console.warn(`[${timestamp}] [WARN] ${message}${detailsStr}`);
-      break;
-    case LogLevel.INFO:
-      console.info(`[${timestamp}] [INFO] ${message}${detailsStr}`);
-      break;
-    case LogLevel.DEBUG:
-      if (!isProduction) {
-        console.debug(`[${timestamp}] [DEBUG] ${message}${detailsStr}`);
-      }
-      break;
-  }
-
-  // If we have a transport function, call it
-  if (logTransport) {
-    try {
-      logTransport(level, message, details);
-    } catch (e) {
-      // Don't let transport errors affect application
-      console.error("Logger transport error:", e);
-    }
-  }
-};
-
-/**
- * Log an error message
- */
-export const logError = (message: string, details?: any): void => {
-  log(LogLevel.ERROR, message, details);
+  logHistory.push({ timestamp, level: "ERROR", message, details });
 };
 
 /**
  * Log a warning message
  */
 export const logWarning = (message: string, details?: any): void => {
-  log(LogLevel.WARN, message, details);
+  const timestamp = new Date().toISOString();
+  console.warn(`[${timestamp}] [WARN] ${message}`, details || "");
+
+  // Save to log history
+  if (logHistory.length >= MAX_LOG_HISTORY) {
+    logHistory.shift();
+  }
+  logHistory.push({ timestamp, level: "WARN", message, details });
 };
 
 /**
  * Log an info message
  */
 export const logInfo = (message: string, details?: any): void => {
-  log(LogLevel.INFO, message, details);
+  const timestamp = new Date().toISOString();
+  console.info(`[${timestamp}] [INFO] ${message}`, details || "");
+
+  // Save to log history
+  if (logHistory.length >= MAX_LOG_HISTORY) {
+    logHistory.shift();
+  }
+  logHistory.push({ timestamp, level: "INFO", message, details });
 };
 
 /**
  * Log a debug message (only in development)
  */
 export const logDebug = (message: string, details?: any): void => {
-  log(LogLevel.DEBUG, message, details);
+  if (isProduction) return;
+
+  const timestamp = new Date().toISOString();
+  console.debug(`[${timestamp}] [DEBUG] ${message}`, details || "");
+
+  // Save to log history
+  if (logHistory.length >= MAX_LOG_HISTORY) {
+    logHistory.shift();
+  }
+  logHistory.push({ timestamp, level: "DEBUG", message, details });
 };
 
 /**
@@ -238,8 +176,6 @@ export const logger = {
   clear: clearLogs,
   logDownload: logDownloadAttempt,
   logMemory: logMemoryUsage,
-  setLevel: setLogLevel,
-  setTransport: setTransport,
 };
 
 export default logger;

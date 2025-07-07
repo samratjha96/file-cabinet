@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { apiService, type FileItem } from "../api";
-import JSZip from "jszip";
+import * as zipjs from "@zip.js/zip.js";
 import logger from "../utils/logger";
 import { attemptMemoryCleanup } from "../utils/memoryManagement";
 
@@ -154,13 +154,20 @@ export const TestDownloader = () => {
         .slice(0, 19);
       const zipName = `test-download-${timestamp}`;
 
-      // Create ZIP
-      const zip = new JSZip();
-      const folder = zip.folder(zipName);
+      // Configure zip.js to use web workers for better performance
+      zipjs.configure({
+        useWebWorkers: true,
+        maxWorkers: navigator.hardwareConcurrency
+          ? Math.max(2, navigator.hardwareConcurrency - 1)
+          : 4,
+        workerScripts: {
+          deflate: ["/z-worker.js"],
+        },
+      });
 
-      if (!folder) {
-        throw new Error("Failed to create ZIP folder");
-      }
+      logger.info(
+        "Using zip.js with web workers for improved large file handling",
+      );
 
       // Process files in batches
       const MAX_CONCURRENT = 3;
@@ -173,80 +180,98 @@ export const TestDownloader = () => {
         return new Promise<void>((resolve) => setTimeout(resolve, 100));
       };
 
+      // Calculate optimal batch size based on file size
+      const calculateOptimalBatchSize = (
+        totalSizeMB: number,
+        fileCount: number,
+      ): number => {
+        if (totalSizeMB > 5000) return 1; // For extremely large files
+        if (totalSizeMB > 2000) return 2; // For very large files
+        if (totalSizeMB > 1000) return 3; // For large files
+        return Math.min(MAX_CONCURRENT, fileCount);
+      };
+
+      // Determine optimal batch size
+      const batchSize = calculateOptimalBatchSize(
+        totalSizeMB,
+        selectedFileObjects.length,
+      );
+      logger.info(
+        `Using batch size: ${batchSize} for processing ${selectedFileObjects.length} files`,
+      );
+
       // Split files into batches
       const batches: FileItem[][] = [];
-      for (let i = 0; i < selectedFileObjects.length; i += MAX_CONCURRENT) {
-        batches.push(selectedFileObjects.slice(i, i + MAX_CONCURRENT));
+      for (let i = 0; i < selectedFileObjects.length; i += batchSize) {
+        batches.push(selectedFileObjects.slice(i, i + batchSize));
       }
+
+      // Create a zip writer with blob output
+      const zipWriter = new zipjs.ZipWriter(
+        new zipjs.BlobWriter("application/zip"),
+      );
 
       // Process each batch
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
-        setStatusMessage(`Downloading batch ${i + 1} of ${batches.length}...`);
+        setStatusMessage(`Processing batch ${i + 1} of ${batches.length}...`);
 
         const batchPromises = batch.map(async (file) => {
           try {
             logger.debug(
-              `Starting download for ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`,
+              `Starting download for ${file.name} (${formatFileSize(file.size)})`,
             );
 
             // Get presigned URL
             const downloadResponse = await apiService.getDownloadUrl(file.key);
-            const response = await fetch(downloadResponse.downloadUrl);
 
-            if (!response.ok) {
-              throw new Error(
-                `Failed to download file: ${response.statusText}`,
-              );
-            }
+            // Get appropriate compression level based on file size
+            const compressionLevel = getCompressionLevel(file.size);
 
-            // For large files, use streaming
+            // For large files, use HTTP reader to stream directly
             if (file.size > 100 * 1024 * 1024) {
               // 100MB
-              logger.debug(`Using streaming for large file: ${file.name}`);
-
-              const reader = response.body?.getReader();
-              if (!reader)
-                throw new Error("Browser doesn't support ReadableStream");
-
-              const chunks: Uint8Array[] = [];
-              let totalSize = 0;
-              let progressSize = 0;
-
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                if (value) {
-                  chunks.push(value);
-                  totalSize += value.length;
-                  progressSize += value.length;
-
-                  if (progressSize > 20 * 1024 * 1024) {
-                    // Log every 20MB
-                    logger.debug(
-                      `Downloaded ${(totalSize / (1024 * 1024)).toFixed(2)}MB of ${file.name}`,
-                    );
-                    progressSize = 0;
-                  }
-                }
-              }
-
-              const allChunks = new Uint8Array(totalSize);
-              let position = 0;
-              for (const chunk of chunks) {
-                allChunks.set(chunk, position);
-                position += chunk.length;
-              }
-
               logger.debug(
-                `Successfully downloaded ${file.name} (${(totalSize / (1024 * 1024)).toFixed(2)}MB)`,
+                `Using HttpReader for streaming large file: ${file.name}`,
               );
-              folder.file(file.name, allChunks);
+
+              // Create a reader that will stream directly from the URL
+              const reader = new zipjs.HttpReader(downloadResponse.downloadUrl);
+
+              // Add the file to the zip
+              await zipWriter.add(file.name, reader, {
+                level: compressionLevel,
+                onprogress: (index, max) => {
+                  // Log progress periodically
+                  if (
+                    max > 0 &&
+                    index % Math.max(1, Math.floor(max / 10)) < 1
+                  ) {
+                    const percent = Math.round((index / max) * 100);
+                    logger.debug(
+                      `Processing ${file.name}: ${percent}% complete`,
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              });
+
+              logger.debug(`Successfully added ${file.name} to ZIP`);
             } else {
-              // For smaller files, use blob
+              // For smaller files, fetch the blob first
+              const response = await fetch(downloadResponse.downloadUrl);
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to download file: ${response.status} ${response.statusText}`,
+                );
+              }
+
               const blob = await response.blob();
-              folder.file(file.name, blob);
+
+              // Add the blob to the zip
+              await zipWriter.add(file.name, new zipjs.BlobReader(blob), {
+                level: compressionLevel,
+              });
             }
 
             successCount++;
@@ -270,48 +295,36 @@ export const TestDownloader = () => {
         );
       } else {
         setStatusMessage(
-          `Successfully downloaded all ${successCount} files. Creating ZIP...`,
-        );
-      }
-
-      // Determine compression level based on size
-      let compressionLevel = 6; // Default
-      if (totalSizeMB > 2000) {
-        compressionLevel = 0; // No compression for huge files
-        logger.info(`Using no compression for ${totalSizeMB.toFixed(2)}MB ZIP`);
-      } else if (totalSizeMB > 500) {
-        compressionLevel = 1; // Light compression for large files
-        logger.info(
-          `Using light compression for ${totalSizeMB.toFixed(2)}MB ZIP`,
+          `Successfully downloaded all ${successCount} files. Finalizing ZIP...`,
         );
       }
 
       // Generate ZIP file
-      setStatusMessage("Generating ZIP file...");
+      setStatusMessage("Finalizing ZIP file...");
       logger.logMemory();
 
-      const zipBlob = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: compressionLevel },
-      });
+      // Close the zip writer to finalize the zip file
+      const zipBlob = await zipWriter.close();
 
       // Trigger download
-      logger.info(
-        `ZIP created: ${(zipBlob.size / (1024 * 1024)).toFixed(2)}MB`,
-      );
+      const zipSizeMB = zipBlob.size / (1024 * 1024);
+      logger.info(`ZIP created: ${zipSizeMB.toFixed(2)}MB`);
       setStatusMessage(
-        `ZIP created: ${(zipBlob.size / (1024 * 1024)).toFixed(2)}MB. Starting download...`,
+        `ZIP created: ${zipSizeMB.toFixed(2)}MB. Starting download...`,
       );
 
-      const url = window.URL.createObjectURL(zipBlob);
+      const url = URL.createObjectURL(zipBlob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `${zipName}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+
+      // Clean up the URL object after a short delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
 
       setStatusMessage(
         `Download complete. ${successCount} files downloaded, ${failedFiles.length} files failed.`,
@@ -562,6 +575,24 @@ function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+// Get appropriate compression level based on file size
+function getCompressionLevel(fileSize: number): number {
+  const sizeMB = fileSize / (1024 * 1024);
+
+  if (sizeMB > 1000) {
+    // > 1GB
+    return 0; // No compression for very large files
+  } else if (sizeMB > 500) {
+    // > 500MB
+    return 1; // Minimal compression for large files
+  } else if (sizeMB > 100) {
+    // > 100MB
+    return 3; // Low compression for medium-large files
+  } else {
+    return 5; // Default compression for smaller files
+  }
 }
 
 export default TestDownloader;

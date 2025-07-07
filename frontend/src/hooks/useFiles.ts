@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
 import { apiService, type FileItem } from "../api";
-import JSZip from "jszip";
 import { config } from "../config";
 import { attemptMemoryCleanup } from "../utils/memoryManagement";
 import logger from "../utils/logger";
+import * as zipjs from "@zip.js/zip.js";
+// Keep JSZip for backward compatibility during transition
+import JSZip from "jszip";
 
 export const useFiles = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -74,24 +76,27 @@ export const useFiles = () => {
     return chunks;
   };
 
-  const downloadFilesAsZip = useCallback(
+  /**
+   * Legacy download method using JSZip - kept for backward compatibility
+   */
+  const downloadFilesAsZipWithJSZip = useCallback(
     async (fileItems: FileItem[], zipName: string) => {
       // Helper function to clean up memory
       const cleanupMemory = async () => {
-        // Try to free memory
         attemptMemoryCleanup();
-
-        // Add a small delay to give GC a chance to run
         return new Promise<void>((resolve) => setTimeout(resolve, 50));
       };
 
       // Log start of download operation
       const totalSizeMB = calculateTotalSize(fileItems);
-      logger.info(`Starting ZIP download for ${fileItems.length} files`, {
-        totalFiles: fileItems.length,
-        totalSizeMB: totalSizeMB.toFixed(2),
-        zipName,
-      });
+      logger.info(
+        `Starting ZIP download with JSZip for ${fileItems.length} files`,
+        {
+          totalFiles: fileItems.length,
+          totalSizeMB: totalSizeMB.toFixed(2),
+          zipName,
+        },
+      );
 
       // Log memory usage at the start
       logger.logMemory();
@@ -99,7 +104,6 @@ export const useFiles = () => {
       try {
         const zip = new JSZip();
         const folder = zip.folder(zipName);
-        const totalSizeMB = calculateTotalSize(fileItems);
 
         if (!folder) {
           throw new Error("Failed to create ZIP folder");
@@ -296,6 +300,296 @@ export const useFiles = () => {
       }
     },
     [],
+  );
+
+  /**
+   * Modern implementation using zip.js with web workers and streaming for large files
+   */
+  const downloadFilesAsZipWithStreaming = useCallback(
+    async (fileItems: FileItem[], zipName: string) => {
+      // Configure zip.js
+      zipjs.configure({
+        useWebWorkers: true,
+        maxWorkers: navigator.hardwareConcurrency
+          ? Math.max(2, navigator.hardwareConcurrency - 1)
+          : 4,
+        workerScripts: {
+          deflate: ["/z-worker.js"],
+        },
+      });
+
+      // Log start of download operation
+      const totalSizeMB = calculateTotalSize(fileItems);
+      logger.info(
+        `Starting streaming ZIP download for ${fileItems.length} files`,
+        {
+          totalFiles: fileItems.length,
+          totalSizeMB: totalSizeMB.toFixed(2),
+          zipName,
+          usingZipJs: true,
+        },
+      );
+
+      // Log memory usage at the start
+      logger.logMemory();
+
+      try {
+        // Determine optimal batch size
+        const batchSize = calculateOptimalBatchSize(
+          totalSizeMB,
+          fileItems.length,
+        );
+        logger.info(
+          `Using batch size: ${batchSize} for processing ${fileItems.length} files`,
+        );
+
+        // Create batches for processing
+        const batches = splitIntoChunks(fileItems, batchSize);
+
+        // Create a BlobWriter to hold the zip data
+        const zipWriter = new zipjs.ZipWriter(
+          new zipjs.BlobWriter("application/zip"),
+        );
+
+        let successCount = 0;
+        let failedDownloads: { fileName: string; error?: unknown }[] = [];
+
+        // Process each batch
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          logger.info(
+            `Processing batch ${i + 1}/${batches.length} (${batch.length} files)`,
+          );
+
+          // Process files in this batch
+          const batchPromises = batch.map(async (fileItem) => {
+            try {
+              logger.debug(
+                `Starting download for ${fileItem.name} (${formatSizeForLog(fileItem.size)})`,
+              );
+
+              // Get download URL from backend
+              const downloadResponse = await apiService.getDownloadUrl(
+                fileItem.key,
+              );
+
+              if (fileItem.size > STREAMING_THRESHOLD) {
+                // For large files, use streaming approach
+                logger.debug(`Using streaming approach for ${fileItem.name}`);
+
+                const response = await fetch(downloadResponse.downloadUrl);
+                if (!response.ok) {
+                  throw new Error(
+                    `Failed to download file: ${response.status} ${response.statusText}`,
+                  );
+                }
+
+                // For large files, create a readable stream from the response
+                if (response.body) {
+                  // Create a reader for the response stream
+                  const reader = new zipjs.HttpReader(
+                    downloadResponse.downloadUrl,
+                  );
+
+                  // Use maximal compression level based on file size
+                  const compressionLevel = getCompressionLevel(fileItem.size);
+
+                  // Add the file to the zip with the stream reader
+                  await zipWriter.add(fileItem.name, reader, {
+                    level: compressionLevel,
+                    onprogress: (index, max) => {
+                      if (index % (max / 10) < 1) {
+                        // Log progress every ~10%
+                        const percent = Math.round((index / max) * 100);
+                        logger.debug(
+                          `Processing ${fileItem.name}: ${percent}% complete`,
+                        );
+                      }
+                      return Promise.resolve();
+                    },
+                  });
+
+                  successCount++;
+                  logger.info(`Successfully added ${fileItem.name} to ZIP`);
+                  return { success: true, fileName: fileItem.name };
+                } else {
+                  throw new Error("Response doesn't have a body stream");
+                }
+              } else {
+                // For smaller files, use the simpler approach
+                const response = await fetch(downloadResponse.downloadUrl);
+                if (!response.ok) {
+                  throw new Error(
+                    `Failed to download file: ${response.status} ${response.statusText}`,
+                  );
+                }
+
+                // Use blob for smaller files
+                const blob = await response.blob();
+
+                // Determine compression level
+                const compressionLevel = getCompressionLevel(blob.size);
+
+                // Add file to zip
+                await zipWriter.add(fileItem.name, new zipjs.BlobReader(blob), {
+                  level: compressionLevel,
+                });
+
+                successCount++;
+                logger.info(`Successfully added ${fileItem.name} to ZIP`);
+                return { success: true, fileName: fileItem.name };
+              }
+            } catch (error) {
+              logger.error(`Error downloading ${fileItem.name}`, error);
+              failedDownloads.push({ fileName: fileItem.name, error });
+              return { success: false, fileName: fileItem.name, error };
+            }
+          });
+
+          // Wait for all files in this batch to be processed
+          await Promise.all(batchPromises);
+
+          // Log memory usage after each batch
+          logger.logMemory();
+
+          // Give GC a chance to clean up memory between batches
+          attemptMemoryCleanup();
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        // Handle any failed downloads
+        if (failedDownloads.length > 0) {
+          const failedNames = failedDownloads
+            .map((item) => item.fileName)
+            .join(", ");
+          logger.warn(
+            `Failed to download ${failedDownloads.length} files: ${failedNames}`,
+          );
+
+          if (successCount === 0) {
+            throw new Error("All file downloads failed");
+          }
+
+          // Notify user about partial success
+          alert(`Warning: ${failedDownloads.length} file(s) failed to download: ${failedNames}
+                \nDownloading ${successCount} successful files as ZIP.`);
+        }
+
+        // Close the zip writer to finalize the zip
+        logger.info("Finalizing ZIP file...");
+        const zipBlob = await zipWriter.close();
+        logger.info(`ZIP created: ${formatSizeForLog(zipBlob.size)}`);
+
+        // Trigger the download
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${zipName}.zip`;
+        document.body.appendChild(link);
+        logger.info("Download triggered");
+        link.click();
+        document.body.removeChild(link);
+
+        // Clean up the URL object
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+      } catch (error) {
+        logger.error("Error creating ZIP file", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to create ZIP";
+        alert(`Unable to create ZIP download: ${errorMessage}`);
+        throw error;
+      }
+    },
+    [],
+  );
+
+  /**
+   * Calculate optimal batch size based on total size and file count
+   */
+  const calculateOptimalBatchSize = (
+    totalSizeMB: number,
+    fileCount: number,
+  ): number => {
+    // Batch size based on total size
+    let batchSize: number;
+
+    if (totalSizeMB > 5000) {
+      // > 5GB
+      batchSize = 1; // Process one file at a time for extremely large data
+    } else if (totalSizeMB > 2000) {
+      // > 2GB
+      batchSize = 2;
+    } else if (totalSizeMB > 1000) {
+      // > 1GB
+      batchSize = 3;
+    } else if (totalSizeMB > 500) {
+      // > 500MB
+      batchSize = 4;
+    } else {
+      batchSize = 5;
+    }
+
+    // Adjust batch size based on file count
+    if (fileCount > 100) {
+      batchSize = Math.min(batchSize, 3);
+    }
+
+    // Don't make batch size larger than file count
+    return Math.min(batchSize, fileCount);
+  };
+
+  /**
+   * Get appropriate compression level based on file size
+   */
+  const getCompressionLevel = (fileSize: number): number => {
+    const sizeMB = fileSize / (1024 * 1024);
+
+    if (sizeMB > 1000) {
+      // > 1GB
+      return 0; // No compression for very large files
+    } else if (sizeMB > 500) {
+      // > 500MB
+      return 1; // Minimal compression for large files
+    } else if (sizeMB > 100) {
+      // > 100MB
+      return 3; // Low compression for medium-large files
+    } else {
+      return 5; // Default compression for smaller files
+    }
+  };
+
+  /**
+   * Format size for logging in a human-readable format
+   */
+  const formatSizeForLog = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  /**
+   * Main download function that uses the best method based on file sizes
+   */
+  const downloadFilesAsZip = useCallback(
+    async (fileItems: FileItem[], zipName: string) => {
+      const totalSizeMB = calculateTotalSize(fileItems);
+
+      // For very large files (>1GB) or many files, use streaming zip.js
+      if (
+        totalSizeMB > 1000 ||
+        fileItems.length > 50 ||
+        fileItems.some((f) => f.size > 1024 * 1024 * 1024)
+      ) {
+        return downloadFilesAsZipWithStreaming(fileItems, zipName);
+      } else {
+        // For smaller files, use the original JSZip implementation
+        return downloadFilesAsZipWithJSZip(fileItems, zipName);
+      }
+    },
+    [downloadFilesAsZipWithJSZip, downloadFilesAsZipWithStreaming],
   );
 
   return {

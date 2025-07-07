@@ -56,24 +56,6 @@ export const apiService = {
   getBaseUrl(): string {
     return API_BASE_URL;
   },
-
-  // Send logs to server
-  async sendLogs(
-    logs: Array<{
-      timestamp: string;
-      level: number;
-      message: string;
-      details?: any;
-    }>,
-  ): Promise<void> {
-    await fetchClient("/api/client-logs", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ logs }),
-    });
-  },
   // Get presigned URL for file upload
   async getUploadUrl(
     fileName: string,

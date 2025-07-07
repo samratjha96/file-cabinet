@@ -10,7 +10,6 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { config } from "./config";
-import logger from "./logger";
 
 class S3Service {
   private s3Client: S3Client;
@@ -29,12 +28,6 @@ class S3Service {
   async generateUploadUrl(fileName: string, fileType: string): Promise<string> {
     const key = `${config.aws.keyPrefix}${Date.now()}-${fileName}`;
 
-    logger.debug(`Generating upload URL for file`, {
-      fileName,
-      fileType,
-      key,
-    });
-
     const command = new PutObjectCommand({
       Bucket: config.aws.bucketName,
       Key: key,
@@ -45,10 +38,6 @@ class S3Service {
       expiresIn: config.upload.presignedUrlExpiry,
     });
 
-    logger.s3("GenerateUploadUrl", config.aws.bucketName, key, {
-      expiresIn: config.upload.presignedUrlExpiry,
-    });
-
     return signedUrl;
   }
 
@@ -56,21 +45,12 @@ class S3Service {
    * Generate a presigned URL for downloading a file from S3
    */
   async generateDownloadUrl(key: string): Promise<string> {
-    logger.debug(`Generating download URL for file`, {
-      key,
-      fileName: this.getFileNameFromKey(key),
-    });
-
     const command = new GetObjectCommand({
       Bucket: config.aws.bucketName,
       Key: key,
     });
 
     const signedUrl = await getSignedUrl(this.s3Client, command, {
-      expiresIn: config.upload.presignedUrlExpiry,
-    });
-
-    logger.s3("GenerateDownloadUrl", config.aws.bucketName, key, {
       expiresIn: config.upload.presignedUrlExpiry,
     });
 
@@ -87,27 +67,13 @@ class S3Service {
       size: number | undefined;
     }>
   > {
-    logger.debug(`Listing files from S3`, {
-      bucket: config.aws.bucketName,
-      prefix: config.aws.keyPrefix,
-    });
-
     const command = new ListObjectsV2Command({
       Bucket: config.aws.bucketName,
       Prefix: config.aws.keyPrefix,
     });
 
     const response = await this.s3Client.send(command);
-    const fileCount = response.Contents?.length || 0;
-
-    logger.s3("ListFiles", config.aws.bucketName, undefined, {
-      prefix: config.aws.keyPrefix,
-      fileCount,
-      totalSizeMB:
-        (response.Contents?.reduce((sum, item) => sum + (item.Size || 0), 0) ||
-          0) /
-        (1024 * 1024),
-    });
+    console.log(`Found ${response.Contents?.length || 0} files in S3`);
 
     return (
       response.Contents?.map((item) => ({
@@ -130,12 +96,6 @@ class S3Service {
   }> {
     const key = `${config.aws.keyPrefix}${Date.now()}-${fileName}`;
 
-    logger.debug(`Initiating multipart upload for file`, {
-      fileName,
-      fileType,
-      key,
-    });
-
     const command = new CreateMultipartUploadCommand({
       Bucket: config.aws.bucketName,
       Key: key,
@@ -145,14 +105,9 @@ class S3Service {
     const response = await this.s3Client.send(command);
 
     if (!response.UploadId) {
-      logger.error("Failed to initiate multipart upload", { fileName, key });
+      console.error("Failed to initiate multipart upload", { fileName, key });
       throw new Error("Failed to initiate multipart upload");
     }
-
-    logger.s3("InitiateMultipartUpload", config.aws.bucketName, key, {
-      uploadId: response.UploadId,
-      contentType: fileType,
-    });
 
     return {
       uploadId: response.UploadId,
