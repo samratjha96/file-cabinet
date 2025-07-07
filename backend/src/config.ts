@@ -20,7 +20,7 @@ export const config = {
 
   // File Upload Configuration
   upload: {
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "5000") * 1024 * 1024, // 5GB default
-    presignedUrlExpiry: parseInt(process.env.PRESIGNED_URL_EXPIRY || "7200"), // 2 hours default
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "50000") * 1024 * 1024, // 50GB default
+    presignedUrlExpiry: parseInt(process.env.PRESIGNED_URL_EXPIRY || "14400"), // 4 hours default
   },
 };

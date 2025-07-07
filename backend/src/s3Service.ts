@@ -186,8 +186,12 @@ class S3Service {
       return 5 * MB; // 5MB for smaller files
     } else if (fileSize < 1000 * MB) {
       return 10 * MB; // 10MB for medium files
+    } else if (fileSize < 10000 * MB) {
+      return 25 * MB; // 25MB for large files (1-10GB)
+    } else if (fileSize < 30000 * MB) {
+      return 50 * MB; // 50MB for very large files (10-30GB)
     } else {
-      return 25 * MB; // 25MB for large files
+      return 100 * MB; // 100MB for extremely large files (>30GB)
     }
   }
 
