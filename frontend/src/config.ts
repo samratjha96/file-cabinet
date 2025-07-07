@@ -7,7 +7,7 @@ export const config = {
   // File Upload Configuration
   upload: {
     maxFileSize:
-      parseInt(import.meta.env.VITE_MAX_FILE_SIZE || "5000") * 1024 * 1024, // 5GB default
+      parseInt(import.meta.env.VITE_MAX_FILE_SIZE || "50000") * 1024 * 1024, // 50GB default
     supportedFileTypes: ["*"], // Allow all file types
   },
 
